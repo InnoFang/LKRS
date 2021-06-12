@@ -3,7 +3,6 @@
 #include "parser/SPARQLParser.hpp"
 
 std::string readSPARQLFromFile(const std::string& filepath) const {
-//    std::string filename = R"(../data/p3.sql)";
     std::ifstream infile(filepath, std::ios::in);
     std::ostringstream buf;
     std::string sparql = "";
