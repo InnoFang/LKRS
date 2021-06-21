@@ -1,8 +1,8 @@
-project(parser)
+set(THIS parser)
+project(${THIS})
 
 set(SOURCE_FILES
         SPARQLParser.cpp
-        triple.cpp
-)
+        )
 
-add_library(parser SHARED STATIC ${SOURCE_FILES})
+add_library(${THIS} STATIC ${SOURCE_FILES})

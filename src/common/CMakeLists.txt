@@ -1,4 +1,4 @@
-set(THIS triple)
+set(THIS common)
 project(${THIS})
 
 set(SOURCE_FILES
