@@ -8,7 +8,7 @@
 #include <vector>
 #include <string>
 #include <regex>
-#include "triple.hpp"
+#include "common/triple.h"
 
 class Parser {
 public:

@@ -13,7 +13,9 @@ public:
     std::string s;
     std::string p;
     std::string o;
-    explicit Triple(const std::string& raw_triple);
+    Triple();
+    Triple(const std::string& s, const std::string& p, const std::string& o);
+    Triple(const std::string& raw_triple);
     ~Triple();
     Triple(const Triple& triple);
 };
