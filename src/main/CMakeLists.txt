@@ -2,7 +2,7 @@ set(THIS tools)
 project(${THIS})
 
 set(SOURCE_FILES
-        load.cpp
+        build.cpp
         query.cpp
         )
 

@@ -8,6 +8,11 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 
 add_subdirectory(src)
 
+add_executable(build src/main/build.cpp)
+add_executable(query src/main/query.cpp)
+target_link_libraries(build database common)
+target_link_libraries(query parser)
+
 enable_testing()
 add_subdirectory(test)
 
