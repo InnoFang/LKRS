@@ -3,6 +3,13 @@
 #include <string>
 #include "parser/SPARQLParser.hpp"
 
+static const auto io_speed_up = [] {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+    return 0;
+}();
+
 std::string readSPARQLFromFile(const std::string& filepath) {
     std::ifstream infile(filepath, std::ios::in);
     std::ostringstream buf;
@@ -14,7 +21,7 @@ std::string readSPARQLFromFile(const std::string& filepath) {
         }
         sparql = buf.str();
     } else {
-        std::cout << "cannot open file: " << std::endl;
+        std::cerr << "cannot open file: " << filepath << std::endl;
     }
     infile.close();
     return sparql;

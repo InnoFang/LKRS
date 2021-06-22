@@ -6,4 +6,4 @@ set(SOURCE_FILES
         query.cpp
         )
 
-add_library(${THIS} SHARED STATIC ${SOURCE_FILES})
+#add_library(${THIS} STATIC ${SOURCE_FILES})
