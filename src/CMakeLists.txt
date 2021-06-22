@@ -3,7 +3,10 @@ project(source)
 
 set(CMAKE_CXX_STANDARD 14)
 
+add_subdirectory(common)
+add_subdirectory(database)
 add_subdirectory(parser)
+add_subdirectory(tools)
 
 #target_link_libraries(source parser)
 #set(SRC parser)
