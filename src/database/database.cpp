@@ -5,7 +5,7 @@
 #include "database/database.hpp"
 
 Database::Database(const std::string& dbname, const std::string& datafile) : dbname_(dbname) {
-    std::ifstream read_db("..\\db\\databases", std::ios::in);
+    std::ifstream read_db("..\\db\\databases", std::ios::binary);
     if (read_db.is_open()) {
         std::string db;
         while (read_db >> db) {
@@ -17,7 +17,7 @@ Database::Database(const std::string& dbname, const std::string& datafile) : dbn
         }
         if (read_db.eof()) {
             std::cout << "database: " << dbname << " has not been created, create it now" << std::endl;
-            std::ofstream write_db("..\\db\\databases", std::ios::out);
+            std::ofstream write_db("..\\db\\databases", std::ios::binary);
             if (write_db.is_open()) {
                 write_db << dbname << std::endl;
                 create(datafile);
@@ -44,7 +44,7 @@ Database::~Database() {
 }
 
 void Database::create(const std::string& datafile) {
-    std::ifstream infile(datafile, std::ios::in);
+    std::ifstream infile(datafile, std::ios::binary);
     if (infile.is_open()) {
         std::string s, p, o;
         triple_size_ = 0;
