@@ -18,6 +18,6 @@ Triple::Triple(const std::string& raw_triple) {
     iss >> s >> p >> o;
 }
 
-Triple::~Triple() = default;
+Triple::~Triple() { };
 
 Triple::Triple(const Triple &triple): s(triple.s), p(triple.p), o(triple.o) {}
