@@ -5,7 +5,7 @@
 #include "database/database.hpp"
 
 Database::Database(const std::string& dbname, const std::string& datafile) : dbname_(dbname) {
-    std::ifstream read_db("..\\db\\databases", std::ios::binary);
+    std::ifstream read_db("..\\db\\databases", std::ifstream::binary);
     if (read_db.is_open()) {
         std::string db;
         while (read_db >> db) {
@@ -17,9 +17,11 @@ Database::Database(const std::string& dbname, const std::string& datafile) : dbn
         }
         if (read_db.eof()) {
             std::cout << "database: " << dbname << " has not been created, create it now" << std::endl;
-            std::ofstream write_db("..\\db\\databases", std::ios::binary);
+            std::ofstream write_db("..\\db\\databases", std::ofstream::binary);
             if (write_db.is_open()) {
                 write_db << dbname << std::endl;
+                write_db.close();
+
                 create(datafile);
                 store();
             } else {
@@ -44,7 +46,7 @@ Database::~Database() {
 }
 
 void Database::create(const std::string& datafile) {
-    std::ifstream infile(datafile, std::ios::binary);
+    std::ifstream infile(datafile, std::ifstream::binary);
     if (infile.is_open()) {
         std::string s, p, o;
         triple_size_ = 0;
@@ -150,9 +152,9 @@ bool Database::store() {
     std::string baseDir = "..\\db\\" + dbname_ + "\\";
     std::system(("mkdir " + baseDir).c_str());
 
-    // database file 1: info.data
-    std::string infoData = baseDir + "info.data";
-    std::ofstream infoDataOut(infoData);
+    // database file 1: info
+    std::string infoData = baseDir + "info";
+    std::ofstream infoDataOut(infoData, std::ofstream::binary);
     if (infoDataOut.is_open()) {
         infoDataOut << triple_size_ << "\n"
             << p_size_ << "\n"
@@ -176,9 +178,9 @@ bool Database::store() {
         return false;
     }
 
-    // database file 2: pid.data
-    std::string pidData = baseDir + "pid.data";
-    std::ofstream pidDataOut(pidData);
+    // database file 2: pid
+    std::string pidData = baseDir + "pid";
+    std::ofstream pidDataOut(pidData, std::ofstream::binary);
     if (pidDataOut.is_open()) {
         for (size_t i = 0; i < p_size_; ++ i) {
             pidDataOut << i << "\t" << id2p_[i] << "\n";
@@ -189,9 +191,9 @@ bool Database::store() {
         return false;
     }
 
-    // database file 3: soid.data
-    std::string soidData = baseDir + "soid.data";
-    std::ofstream soidDataOut(soidData);
+    // database file 3: soid
+    std::string soidData = baseDir + "soid";
+    std::ofstream soidDataOut(soidData, std::ofstream::binary);
     if (soidDataOut.is_open()) {
         for (size_t i = 0; i < so_size_; ++ i) {
             soidDataOut << i << "\t" << id2so_[i] << "\n";
@@ -202,9 +204,9 @@ bool Database::store() {
         return false;
     }
 
-    // database file 4: pso.data
-    std::string psoData = baseDir + "pso.data";
-    std::ofstream psoDataOut(psoData);
+    // database file 4: pso
+    std::string psoData = baseDir + "pso";
+    std::ofstream psoDataOut(psoData, std::ofstream::binary);
     if (psoDataOut.is_open()) {
         for (const auto& pso: pso_) {
             psoDataOut << pso << "\n";
@@ -221,9 +223,9 @@ bool Database::load(const std::string& dbname) {
 
     std::string baseDir = "..\\db\\" + dbname_ + "\\";
 
-    // database file 1: info.data
-    std::string infoData = baseDir + "info.data";
-    std::ifstream infoDataIn(infoData);
+    // database file 1: info
+    std::string infoData = baseDir + "info";
+    std::ifstream infoDataIn(infoData, std::ifstream::binary);
     if (infoDataIn.is_open()) {
         infoDataIn  >> triple_size_
                     >> p_size_
@@ -247,9 +249,9 @@ bool Database::load(const std::string& dbname) {
         return false;
     }
 
-    // database file 2: pid.data
-    std::string pidData = baseDir + "pid.data";
-    std::ifstream pidDataIn(pidData);
+    // database file 2: pid
+    std::string pidData = baseDir + "pid";
+    std::ifstream pidDataIn(pidData, std::ifstream::binary);
     if (pidDataIn.is_open()) {
         id2p_.clear();
         id2p_.resize(p_size_);
@@ -267,9 +269,9 @@ bool Database::load(const std::string& dbname) {
         return false;
     }
 
-    // database file 3: soid.data
-    std::string soidData = baseDir + "soid.data";
-    std::ifstream soidDataIn(soidData);
+    // database file 3: soid
+    std::string soidData = baseDir + "soid";
+    std::ifstream soidDataIn(soidData, std::ifstream::binary);
     if (soidDataIn.is_open()) {
         id2so_.clear();
         id2so_.resize(so_size_);
@@ -287,9 +289,9 @@ bool Database::load(const std::string& dbname) {
         return false;
     }
 
-    // database file 4: pso.data
-    std::string psoData = baseDir + "pso.data";
-    std::ifstream psoDataIn(psoData);
+    // database file 4: pso
+    std::string psoData = baseDir + "pso";
+    std::ifstream psoDataIn(psoData, std::ifstream::binary);
     if (psoDataIn.is_open()) {
         pso_.clear();
         pso_.resize(triple_size_);
@@ -308,7 +310,7 @@ bool Database::load(const std::string& dbname) {
 
 /*
 
- database file 1: info.data
+ database file 1: info
  triple_size_
  p_size_
  so_size_
@@ -320,12 +322,12 @@ bool Database::load(const std::string& dbname) {
  p_index_
  p_range_
 
- database file 2: pid.data
+ database file 2: pid
  pid predicate
 
- database file 3: soid.data
+ database file 3: soid
  soid su/object
 
- database file 4: pso.data
+ database file 4: pso
  pso
  */
