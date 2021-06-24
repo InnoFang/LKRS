@@ -48,13 +48,23 @@ Database::~Database() {
 void Database::create(const std::string& datafile) {
     std::ifstream infile(datafile, std::ifstream::binary);
     if (infile.is_open()) {
-        std::string s, p, o;
+        std::string raw_triple_str;
         triple_size_ = 0;
         p_size_ = 0;
         so_size_ = 0;
-        while (infile >> s >> p >> o) {
-            Triple triple(s, p, o);
+        while (std::getline(infile, raw_triple_str)) {
+            for (int i = raw_triple_str.length() - 1; i >= 0; -- i) {
+                if (raw_triple_str[i] == ' ' || raw_triple_str[i] == '.') {
+                    raw_triple_str = raw_triple_str.substr(0, i);
+                    break;
+                }
+            }
+            Triple triple(raw_triple_str);
             triples_.push_back(triple);
+
+            std::string s = triple.s;
+            std::string p = triple.p;
+            std::string o = triple.o;
             if (!p2id_.count(p)) {
                 p2id_[p] = p_size_ ++;
                 id2p_.push_back(p);
