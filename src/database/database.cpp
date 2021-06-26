@@ -4,38 +4,37 @@
 
 #include "database/database.hpp"
 
-Database::Database(const std::string& dbname, const std::string& datafile) : dbname_(dbname) {
-    std::ifstream read_db("..\\db\\databases", std::ifstream::binary);
-    if (read_db.is_open()) {
-        std::string db;
-        while (read_db >> db) {
-            if (db == dbname) {
-                std::cout << "database: " << dbname << " found, load it now." << std::endl;
-                load(dbname);
-                break;
-            }
-        }
-        if (read_db.eof()) {
-            std::cout << "database: " << dbname << " has not been created, create it now" << std::endl;
-            std::ofstream write_db("..\\db\\databases", std::ofstream::binary);
-            if (write_db.is_open()) {
-                write_db << dbname << std::endl;
-                write_db.close();
-
-                create(datafile);
-                store();
-            } else {
-                std::cerr << "cannot load or create database: " << dbname << std::endl;
-            }
-        }
-        read_db.close();
-    }
+Database::Database(const std::string& dbname) : dbname_(dbname) {
+//    std::ifstream read_db("..\\db\\databases", std::ifstream::binary);
+//    if (read_db.is_open()) {
+//        std::string db;
+//        while (read_db >> db) {
+//            if (db == dbname) {
+//                std::cout << "database: " << dbname << " found, load it now." << std::endl;
+//                load(dbname);
+//                break;
+//            }
+//        }
+//        if (read_db.eof()) {
+//            std::cout << "database: " << dbname << " has not been created, create it now" << std::endl;
+//            std::ofstream write_db("..\\db\\databases", std::ofstream::binary);
+//            if (write_db.is_open()) {
+//                write_db << dbname << std::endl;
+//                write_db.close();
+//
+//                create(datafile);
+//            } else {
+//                std::cerr << "cannot load or create database: " << dbname << std::endl;
+//            }
+//        }
+//        read_db.close();
+//    }
 
     // test
 //    for (const auto &pso : pso_) {
-//        ull sid = (pso & s_mask_) >> (4 * so_hex_len_);
-//        ull pid = (pso & p_mask_) >> (2 * 4 * so_hex_len_);
-//        ull oid = (pso & o_mask_);
+//        uint64_t sid = (pso & s_mask_) >> (4 * so_hex_len_);
+//        uint64_t pid = (pso & p_mask_) >> (2 * 4 * so_hex_len_);
+//        uint64_t oid = (pso & o_mask_);
 ////        std::cout << sid << "\t" << pid << "\t" << oid << std::endl;
 ////        std::cout << id2so_[sid] << "\t" << id2p_[pid] << "\t" << id2so_[oid] << std::endl;
 //    }
@@ -109,6 +108,8 @@ void Database::create(const std::string& datafile) {
         generatePSO();
 
         infile.close();
+
+        store();
     } else {
         std::cerr << "cannot open file: "<< datafile << std::endl;
     }
@@ -130,12 +131,12 @@ void Database::hexManipulation() {
     s_mask_<<= (4 * so_hex_len_);
 }
 
-ull Database::convert2pso(const Triple &triple) {
-    ull pid = p2id_[triple.p];
-    ull sid = so2id_[triple.s];
-    ull oid = so2id_[triple.o];
+uint64_t Database::convert2pso(const Triple &triple) {
+    uint64_t pid = p2id_[triple.p];
+    uint64_t sid = so2id_[triple.s];
+    uint64_t oid = so2id_[triple.o];
 //    std::cout << "conver2pso: " << sid << "\t" << pid << "\t" << oid << std::endl;
-    ull ret = (pid << (2 * 4 * so_hex_len_))
+    uint64_t ret = (pid << (2 * 4 * so_hex_len_))
             | (sid << (4 * so_hex_len_))
             | oid;
     return ret;
@@ -148,11 +149,11 @@ void Database::generatePSO() {
         pso_[i] = convert2pso(triples_[i]);
     }
 
-//    auto cmp = [&](const ull& a, const ull& b) {
-//        ull a_p = (a & p_mask_);
-//        ull a_so = (a & s_mask_) | (a & o_mask_);
-//        ull b_p = (b & p_mask_);
-//        ull b_so = (b & s_mask_) | (b & o_mask_);
+//    auto cmp = [&](const uint64_t& a, const uint64_t& b) {
+//        uint64_t a_p = (a & p_mask_);
+//        uint64_t a_so = (a & s_mask_) | (a & o_mask_);
+//        uint64_t b_p = (b & p_mask_);
+//        uint64_t b_so = (b & s_mask_) | (b & o_mask_);
 //        return a_p == b_p ? a_so < b_so : a_p < b_p;
 //    };
     std::sort(pso_.begin(), pso_.end());
@@ -229,7 +230,7 @@ bool Database::store() {
     return true;
 }
 
-bool Database::load(const std::string& dbname) {
+bool Database::load() {
 
     std::string baseDir = "..\\db\\" + dbname_ + "\\";
 
@@ -267,7 +268,7 @@ bool Database::load(const std::string& dbname) {
         id2p_.resize(p_size_);
         p2id_.clear();
         for (size_t i = 0; i < p_size_; ++ i) {
-            ull index;
+            uint64_t index;
             std::string predicate;
             pidDataIn >> index >> predicate;
             id2p_[index] = predicate;
@@ -287,7 +288,7 @@ bool Database::load(const std::string& dbname) {
         id2so_.resize(so_size_);
         so2id_.clear();
         for (size_t i = 0; i < so_size_; ++ i) {
-            ull index;
+            uint64_t index;
             std::string suobject;
             soidDataIn >> index >> suobject;
             id2so_[index] = suobject;
