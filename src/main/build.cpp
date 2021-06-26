@@ -25,7 +25,8 @@ int main (int argc, char* argv[]) {
     std::cout << dbname << " " << datafile << std::endl;
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    Database *db = new Database(dbname, datafile);
+    Database *db = new Database(dbname);
+    db->create(datafile);
 
     double used_time = std::chrono::duration_cast<std::chrono::duration<double>>(
             std::chrono::high_resolution_clock::now() - start_time)
