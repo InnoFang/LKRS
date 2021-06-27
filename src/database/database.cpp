@@ -161,7 +161,8 @@ void Database::generatePSO() {
 
 bool Database::store() {
     std::string baseDir = "..\\db\\" + dbname_ + "\\";
-    std::system(("mkdir " + baseDir).c_str());
+    const std::filesystem::path basePath(baseDir);
+    std::filesystem::create_directories(basePath);
 
     // database file 1: info
     std::string infoData = baseDir + "info";

@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <filesystem>
 #include <unordered_map>
 #include "common/triple.hpp"
 
