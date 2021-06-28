@@ -16,6 +16,8 @@
 #include <unordered_map>
 #include "common/triple.hpp"
 
+namespace fs = std::filesystem;
+
 class Database {
 public:
     Database(const std::string& dbname);
@@ -29,6 +31,12 @@ public:
     void generatePSO();
 
 private:
+    fs::path db_path_;
+    fs::path info_path_;
+    fs::path pid_path_;
+    fs::path soid_path_;
+    fs::path pso_path_;
+
     std::string dbname_;
     std::string datafile_;
     size_t triple_size_;

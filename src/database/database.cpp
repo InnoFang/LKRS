@@ -5,6 +5,12 @@
 #include "database/database.hpp"
 
 Database::Database(const std::string& dbname) : dbname_(dbname) {
+    db_path_.append("..").append("db").append(dbname);
+    info_path_.append(db_path_.string()).append("info");
+    pid_path_.append(db_path_.string()).append("pid");
+    soid_path_.append(db_path_.string()).append("soid");
+    pso_path_.append(db_path_.string()).append("spo");
+
 //    std::ifstream read_db("..\\db\\databases", std::ifstream::binary);
 //    if (read_db.is_open()) {
 //        std::string db;
@@ -160,13 +166,12 @@ void Database::generatePSO() {
 }
 
 bool Database::store() {
-    std::string baseDir = "..\\db\\" + dbname_ + "\\";
-    const std::filesystem::path basePath(baseDir);
-    std::filesystem::create_directories(basePath);
+
+//    std::string baseDir = "..\\db\\" + dbname_ + "\\";
+    fs::create_directories(db_path_);
 
     // database file 1: info
-    std::string infoData = baseDir + "info";
-    std::ofstream infoDataOut(infoData, std::ofstream::binary);
+    std::ofstream infoDataOut(info_path_, std::ofstream::binary);
     if (infoDataOut.is_open()) {
         infoDataOut << triple_size_ << "\n"
             << p_size_ << "\n"
@@ -186,58 +191,53 @@ bool Database::store() {
         infoDataOut << "\n";
         infoDataOut.close();
     } else {
-        std::cerr << "cannot create file: "<< infoData << std::endl;
+        std::cerr << "cannot create file: "<< info_path_ << std::endl;
         return false;
     }
 
     // database file 2: pid
-    std::string pidData = baseDir + "pid";
-    std::ofstream pidDataOut(pidData, std::ofstream::binary);
+//    std::string pidData = baseDir + "pid";
+    std::ofstream pidDataOut(pid_path_, std::ofstream::binary);
     if (pidDataOut.is_open()) {
         for (size_t i = 0; i < p_size_; ++ i) {
             pidDataOut << i << "\t" << id2p_[i] << "\n";
         }
         pidDataOut.close();
     } else {
-        std::cerr << "cannot create file: "<< pidData << std::endl;
+        std::cerr << "cannot create file: "<< pid_path_ << std::endl;
         return false;
     }
 
     // database file 3: soid
-    std::string soidData = baseDir + "soid";
-    std::ofstream soidDataOut(soidData, std::ofstream::binary);
+    std::ofstream soidDataOut(soid_path_, std::ofstream::binary);
     if (soidDataOut.is_open()) {
         for (size_t i = 0; i < so_size_; ++ i) {
             soidDataOut << i << "\t" << id2so_[i] << "\n";
         }
         soidDataOut.close();
     } else {
-        std::cerr << "cannot create file: "<< pidData << std::endl;
+        std::cerr << "cannot create file: "<< soid_path_ << std::endl;
         return false;
     }
 
     // database file 4: pso
-    std::string psoData = baseDir + "pso";
-    std::ofstream psoDataOut(psoData, std::ofstream::binary);
+//    std::string psoData = baseDir + "pso";
+    std::ofstream psoDataOut(pso_path_, std::ofstream::binary);
     if (psoDataOut.is_open()) {
         for (const auto& pso: pso_) {
             psoDataOut << pso << "\n";
         }
         psoDataOut.close();
     } else {
-        std::cerr << "cannot create file: "<< psoData << std::endl;
+        std::cerr << "cannot create file: "<< pso_path_ << std::endl;
         return false;
     }
     return true;
 }
 
 bool Database::load() {
-
-    std::string baseDir = "..\\db\\" + dbname_ + "\\";
-
     // database file 1: info
-    std::string infoData = baseDir + "info";
-    std::ifstream infoDataIn(infoData, std::ifstream::binary);
+    std::ifstream infoDataIn(info_path_, std::ifstream::binary);
     if (infoDataIn.is_open()) {
         infoDataIn  >> triple_size_
                     >> p_size_
@@ -257,13 +257,12 @@ bool Database::load() {
         }
         infoDataIn.close();
     } else {
-        std::cerr << "cannot read from file: " << infoData << std::endl;
+        std::cerr << "cannot read from file: " << info_path_ << std::endl;
         return false;
     }
 
     // database file 2: pid
-    std::string pidData = baseDir + "pid";
-    std::ifstream pidDataIn(pidData, std::ifstream::binary);
+    std::ifstream pidDataIn(pid_path_, std::ifstream::binary);
     if (pidDataIn.is_open()) {
         id2p_.clear();
         id2p_.resize(p_size_);
@@ -277,13 +276,12 @@ bool Database::load() {
         }
         pidDataIn.close();
     } else {
-        std::cerr << "cannot read from file: " << pidData << std::endl;
+        std::cerr << "cannot read from file: " << pid_path_ << std::endl;
         return false;
     }
 
     // database file 3: soid
-    std::string soidData = baseDir + "soid";
-    std::ifstream soidDataIn(soidData, std::ifstream::binary);
+    std::ifstream soidDataIn(soid_path_, std::ifstream::binary);
     if (soidDataIn.is_open()) {
         id2so_.clear();
         id2so_.resize(so_size_);
@@ -297,13 +295,12 @@ bool Database::load() {
         }
         soidDataIn.close();
     } else {
-        std::cerr << "cannot read from file: " << pidData << std::endl;
+        std::cerr << "cannot read from file: " << soid_path_ << std::endl;
         return false;
     }
 
     // database file 4: pso
-    std::string psoData = baseDir + "pso";
-    std::ifstream psoDataIn(psoData, std::ifstream::binary);
+    std::ifstream psoDataIn(pso_path_, std::ifstream::binary);
     if (psoDataIn.is_open()) {
         pso_.clear();
         pso_.resize(triple_size_);
@@ -312,7 +309,7 @@ bool Database::load() {
         }
         psoDataIn.close();
     } else {
-        std::cerr << "cannot read from file: " << psoData << std::endl;
+        std::cerr << "cannot read from file: " << pso_path_ << std::endl;
         return false;
     }
 
@@ -321,7 +318,6 @@ bool Database::load() {
 
 
 /*
-
  database file 1: info
  triple_size_
  p_size_
