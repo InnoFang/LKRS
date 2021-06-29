@@ -236,6 +236,10 @@ bool Database::store() {
 }
 
 bool Database::load() {
+    if (!fs::exists(db_path_)) {
+        throw DBLoadException(db_path_.string());
+    }
+
     // database file 1: info
     std::ifstream infoDataIn(info_path_, std::ifstream::binary);
     if (infoDataIn.is_open()) {
@@ -315,7 +319,6 @@ bool Database::load() {
 
     return true;
 }
-
 
 /*
  database file 1: info
