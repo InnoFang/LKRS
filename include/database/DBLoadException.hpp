@@ -12,6 +12,7 @@ class DBLoadException : public std::exception {
 public:
     DBLoadException(std::string db_name);
     ~DBLoadException();
+    const char * what() const noexcept override;
 private:
     std::string message;
 };

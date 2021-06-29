@@ -11,3 +11,8 @@ DBLoadException::DBLoadException(std::string db_name) {
 DBLoadException::~DBLoadException() {
 
 }
+
+const char *DBLoadException::what() const noexcept {
+    return message.c_str();
+}
+

@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <unordered_map>
 #include "common/triple.hpp"
+#include "DBLoadException.hpp"
 
 namespace fs = std::filesystem;
 
