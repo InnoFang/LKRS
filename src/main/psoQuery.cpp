@@ -2,6 +2,8 @@
 #include <fstream>
 #include <string>
 #include "parser/SPARQLParser.hpp"
+#include "database/DBLoadException.hpp"
+#include "database/database.hpp"
 
 static const auto io_speed_up = [] {
     std::ios::sync_with_stdio(false);
@@ -27,8 +29,19 @@ std::string readSPARQLFromFile(const std::string& filepath) {
     return sparql;
 }
 
-int main() {
-    std::string sparql = readSPARQLFromFile("../data/p1.sql");
-    std::cout << sparql << std::endl;
+int main(int argc, char** argv) {
+    std::string dbname = argv[1];
+    std::string query_file = argv[2];
+
+    std::string sparql = readSPARQLFromFile(query_file);
+    std::cout << "load data: " << dbname << "\n" << sparql << std::endl;
+
+    Database database(dbname);
+    try {
+        database.load();
+    } catch (const DBLoadException& e) {
+        std::cerr << e.what() << std::endl;
+        std::cerr << "please build db files first." << std::endl;
+    }
     return 0;
 }
