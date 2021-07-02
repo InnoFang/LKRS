@@ -12,18 +12,19 @@
 #include "parser/SPARQLParser.hpp"
 #include "database/database.hpp"
 #include "database/DBLoadException.hpp"
+#include "QueryPlan.hpp"
 
 class SPARQLQuery {
 public:
     SPARQLQuery(const std::string& dbname);
     ~SPARQLQuery();
-    std::vector<std::unordered_map<std::string, std::string>> query(const std::string& sparql);
+    std::vector<std::vector<std::string>> query(const std::string& sparql);
 private:
     std::string sparql_;
     std::string dbname_;
     Database *psoDB_;
-    void generateQueryPlan(const std::vector<std::string>& variables, const std::vector<Triple>& triples);
-    std::vector<std::unordered_map<std::string, std::string>> execute();
+    QueryPlan generateQueryPlan(const std::vector<std::string>& variables, const std::vector<Triple>& triples);
+    std::vector<std::vector<std::string>> execute(QueryPlan& queryPlan);
 };
 
 #endif //RETRIEVE_SYSTEM_SPARQL_QUERY_H

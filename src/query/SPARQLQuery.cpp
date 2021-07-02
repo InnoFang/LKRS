@@ -20,19 +20,22 @@ SPARQLQuery::~SPARQLQuery() {
     delete psoDB_;
 }
 
-std::vector<std::unordered_map<std::string, std::string>> SPARQLQuery::query(const std::string& sparql) {
+std::vector<std::vector<std::string>> SPARQLQuery::query(const std::string& sparql) {
     SPARQLParser* parser = new SPARQLParser(sparql);
-    generateQueryPlan(parser->getQueryVariables(), parser->getQueryTriples());
-    auto ans = execute();
-//
+    QueryPlan queryPlan = generateQueryPlan(parser->getQueryVariables(), parser->getQueryTriples());
+    auto ans = execute(queryPlan);
     delete parser;
     return ans;
 }
 
-void SPARQLQuery::generateQueryPlan(const std::vector<std::string>& variables, const std::vector<Triple>& triples) {
+QueryPlan SPARQLQuery::generateQueryPlan(const std::vector<std::string>& variables, const std::vector<Triple>& triples) {
+    QueryPlan queryPlan(variables, triples);
 
+    return queryPlan;
 }
 
-std::vector<std::unordered_map<std::string, std::string>> SPARQLQuery::execute() {
-    return std::vector<std::unordered_map<std::string, std::string>>();
+std::vector<std::vector<std::string>> SPARQLQuery::execute(QueryPlan& queryPlan) {
+    auto queryResult = queryPlan.execute();
+    std::vector<std::vector<std::string>> ans;
+    return ans;
 }
