@@ -121,15 +121,15 @@ void Database::create(const std::string& datafile) {
     }
 }
 
-int Database::getHexLength(size_t length) {
+int Database::calcHexLength(size_t length) {
     return ceil(log(length + 1) / log(16));
 }
 
 void Database::hexManipulation() {
     /* hex-manipulation */
     // get the hex-number size of 'p' and 'so'
-    p_hex_len_ = getHexLength(p_size_);
-    so_hex_len_ = getHexLength(so_size_);
+    p_hex_len_ = calcHexLength(p_size_);
+    so_hex_len_ = calcHexLength(so_size_);
     p_mask_ = (1 << (4 * p_hex_len_)) - 1;
     s_mask_ = o_mask_ = (1 << (4 * so_hex_len_)) - 1;
 
@@ -142,10 +142,10 @@ uint64_t Database::convert2pso(const Triple &triple) {
     uint64_t sid = so2id_[triple.s];
     uint64_t oid = so2id_[triple.o];
 //    std::cout << "conver2pso: " << sid << "\t" << pid << "\t" << oid << std::endl;
-    uint64_t ret = (pid << (2 * 4 * so_hex_len_))
-            | (sid << (4 * so_hex_len_))
-            | oid;
-    return ret;
+    uint64_t pso = (pid << (2 * 4 * so_hex_len_))
+                   | (sid << (4 * so_hex_len_))
+                   | oid;
+    return pso;
 }
 
 void Database::generatePSO() {
@@ -209,6 +209,7 @@ bool Database::store() {
     }
 
     // database file 3: soid
+    // soid su/object
     std::ofstream soidDataOut(soid_path_, std::ofstream::binary);
     if (soidDataOut.is_open()) {
         for (size_t i = 0; i < so_size_; ++ i) {
@@ -266,6 +267,7 @@ bool Database::load() {
     }
 
     // database file 2: pid
+    // pid predicate
     std::ifstream pidDataIn(pid_path_, std::ifstream::binary);
     if (pidDataIn.is_open()) {
         id2p_.clear();
@@ -320,25 +322,39 @@ bool Database::load() {
     return true;
 }
 
-/*
- database file 1: info
- triple_size_
- p_size_
- so_size_
- p_hex_len_
- so_hex_len_
- p_mask_
- s_mask_
- o_mask_
- p_index_
- p_range_
+uint64_t Database::getIdByP(const std::string &p) {
+    return p2id_[p];
+}
 
- database file 2: pid
- pid predicate
+uint64_t Database::getIdBySO(const std::string &so) {
+    return so2id_[so];
+}
 
- database file 3: soid
- soid su/object
+std::string Database::getPbyId(const uint64_t id) {
+    return id2p_[id];
+}
 
- database file 4: pso
- pso
- */
+std::string Database::getPbySO(const uint64_t id) {
+    return id2so_[id];
+}
+
+uint64_t Database::getPMask() {
+    return p_mask_;
+}
+
+uint64_t Database::getSMask() {
+    return s_mask_;
+}
+
+uint64_t Database::getOMask() {
+    return o_mask_;
+}
+
+int Database::getPHexLength() {
+    return p_hex_len_;
+}
+
+int Database::getSOHexLength() {
+    return so_hex_len_;
+}
+

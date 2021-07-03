@@ -28,8 +28,17 @@ public:
     bool load();
     void hexManipulation();
     uint64_t convert2pso(const Triple& triple);
-    int getHexLength(size_t length);
+    int calcHexLength(size_t length);
     void generatePSO();
+    uint64_t getIdByP(const std::string& p);
+    uint64_t getIdBySO(const std::string& so);
+    std::string getPbyId(const uint64_t id);
+    std::string getPbySO(const uint64_t id);
+    uint64_t getPMask();
+    uint64_t getSMask();
+    uint64_t getOMask();
+    int getPHexLength();
+    int getSOHexLength();
 
 private:
     fs::path db_path_;
