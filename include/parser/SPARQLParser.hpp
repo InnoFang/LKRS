@@ -10,14 +10,11 @@
 #include <regex>
 #include "common/triple.hpp"
 
-class Parser {
+class SPARQLParser {
 public:
-    Parser();
-    ~Parser();
-    void parse(std::string &sparql);
+    SPARQLParser(const std::string &sparql);
+    ~SPARQLParser();
     std::vector<std::string> getQueryVariables();
-    void catchVariables(const std::string& raw_variable);
-    void catchTriples(const std::string& raw_triple);
     std::vector<Triple> getQueryTriples();
 
 private:
@@ -25,6 +22,9 @@ private:
     std::string sparql_;
     std::vector<std::string> variables_;
     std::vector<Triple> triples_;
+    void parse(const std::string &sparql);
+    void catchVariables(const std::string& raw_variable);
+    void catchTriples(const std::string& raw_triple);
 };
 
 #endif //PARSER_SPARQL_PARSER_HPP_

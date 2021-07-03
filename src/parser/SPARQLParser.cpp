@@ -5,13 +5,14 @@
 #include <iostream>
 #include "parser/SPARQLParser.hpp"
 
-Parser::Parser() {
-    pattern_ = std::regex("^SELECT\\s+(.*)\\s+WHERE\\s*\\{([^}]+)\\}$", std::regex::icase);
+SPARQLParser::SPARQLParser(const std::string& sparql) {
+    pattern_ = std::regex("SELECT\\s+(.*)\\s+WHERE\\s*\\{([^}]+)\\}", std::regex::icase);
+    parse(sparql);
 }
 
-Parser::~Parser() = default;
+SPARQLParser::~SPARQLParser() = default;
 
-void Parser::parse(std::string &sparql) {
+void SPARQLParser::parse(const std::string &sparql) {
     std::smatch match;
     if (std::regex_search(sparql, match, pattern_)) {
 //        std::cout << "Match size = " << match.size() << std::endl;
@@ -25,11 +26,11 @@ void Parser::parse(std::string &sparql) {
         catchVariables(match.str(1));
         catchTriples(match.str(2));
     } else {
-        std::cerr << "No match is found." << std::endl;
+        std::cerr << "[SPARQL parser] cannot parse it as SPARQL." << std::endl;
     }
 }
 
-void Parser::catchVariables(const std::string &raw_variable) {
+void SPARQLParser::catchVariables(const std::string &raw_variable) {
     std::istringstream iss(raw_variable);
     using is_iter_str = std::istream_iterator<std::string>;
     auto beg = is_iter_str(iss);
@@ -37,7 +38,7 @@ void Parser::catchVariables(const std::string &raw_variable) {
     variables_.assign(beg, end);
 }
 
-void Parser::catchTriples(const std::string &raw_triple) {
+void SPARQLParser::catchTriples(const std::string &raw_triple) {
     std::regex sep("\\.\\s");
     std::sregex_token_iterator tokens(raw_triple.cbegin(), raw_triple.cend(), sep, -1);
     std::sregex_token_iterator end;
@@ -46,10 +47,10 @@ void Parser::catchTriples(const std::string &raw_triple) {
     }
 }
 
-std::vector<std::string> Parser::getQueryVariables() {
+std::vector<std::string> SPARQLParser::getQueryVariables() {
     return variables_;
 }
 
-std::vector<Triple> Parser::getQueryTriples() {
+std::vector<Triple> SPARQLParser::getQueryTriples() {
     return triples_;
 }
