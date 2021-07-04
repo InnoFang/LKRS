@@ -15,16 +15,8 @@ SPARQLParser::~SPARQLParser() = default;
 void SPARQLParser::parse(const std::string &sparql) {
     std::smatch match;
     if (std::regex_search(sparql, match, pattern_)) {
-//        std::cout << "Match size = " << match.size() << std::endl;
-//        std::cout << "Whole match : " << match.str(0) << std::endl;
-//        std::cout << "First capturing group is '" << match.str(1)
-//                  << "' which is captured at index " << match.position(1)
-//                  << std::endl;
-//        std::cout << "Second capturing group is '" << match.str(2)
-//                  << "' which is captured at index " << match.position(2)
-//                  << std::endl;
         if (match.size() > 2) {
-            distinct_ =  match.str(1) == "distinct";
+            distinct_ = true;
             catchVariables(match.str(2));
             catchTriples(match.str(3));
         } else {
