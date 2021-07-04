@@ -6,7 +6,7 @@
 #include "parser/SPARQLParser.hpp"
 
 SPARQLParser::SPARQLParser(const std::string& sparql) {
-    pattern_ = std::regex("SELECT\\s+(.*)\\s+WHERE\\s*\\{([^}]+)\\}", std::regex::icase);
+    pattern_ = std::regex("SELECT\\s+(DISTINCT)?(.*)WHERE\\s*\\{([^}]+)\\}", std::regex::icase);
     parse(sparql);
 }
 
@@ -23,8 +23,15 @@ void SPARQLParser::parse(const std::string &sparql) {
 //        std::cout << "Second capturing group is '" << match.str(2)
 //                  << "' which is captured at index " << match.position(2)
 //                  << std::endl;
-        catchVariables(match.str(1));
-        catchTriples(match.str(2));
+        if (match.size() > 2) {
+            distinct_ =  match.str(1) == "distinct";
+            catchVariables(match.str(2));
+            catchTriples(match.str(3));
+        } else {
+            distinct_ = false;
+            catchVariables(match.str(1));
+            catchTriples(match.str(2));
+        }
     } else {
         std::cerr << "[SPARQL parser] cannot parse it as SPARQL." << std::endl;
     }
@@ -53,4 +60,8 @@ std::vector<std::string> SPARQLParser::getQueryVariables() {
 
 std::vector<Triple> SPARQLParser::getQueryTriples() {
     return triples_;
+}
+
+bool SPARQLParser::isDistinct() {
+    return distinct_;
 }

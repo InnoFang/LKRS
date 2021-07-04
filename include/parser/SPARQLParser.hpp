@@ -16,12 +16,14 @@ public:
     ~SPARQLParser();
     std::vector<std::string> getQueryVariables();
     std::vector<Triple> getQueryTriples();
+    bool  isDistinct();
 
 private:
     std::regex pattern_;
     std::string sparql_;
     std::vector<std::string> variables_;
     std::vector<Triple> triples_;
+    bool distinct_;
     void parse(const std::string &sparql);
     void catchVariables(const std::string& raw_variable);
     void catchTriples(const std::string& raw_triple);
