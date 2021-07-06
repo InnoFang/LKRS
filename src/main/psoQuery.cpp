@@ -1,16 +1,17 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <chrono>
 #include "parser/SPARQLParser.hpp"
-#include "database/DBLoadException.hpp"
 #include "database/database.hpp"
+#include "query/SPARQLQuery.hpp"
 
 static const auto io_speed_up = [] {
     std::ios::sync_with_stdio(false);
     std::cin.tie(nullptr);
     std::cout.tie(nullptr);
     return 0;
-}();
+} ();
 
 std::string readSPARQLFromFile(const std::string& filepath) {
     std::ifstream infile(filepath, std::ios::in);
@@ -34,14 +35,18 @@ int main(int argc, char** argv) {
     std::string query_file = argv[2];
 
     std::string sparql = readSPARQLFromFile(query_file);
-    std::cout << "load data: " << dbname << "\n" << sparql << std::endl;
+    SPARQLQuery sparqlQuery(dbname);
+    SPARQLParser parser(sparql);
 
-    Database database(dbname);
-    try {
-        database.load();
-    } catch (const DBLoadException& e) {
-        std::cerr << e.what() << std::endl;
-        std::cerr << "please build db files first." << std::endl;
-    }
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    sparqlQuery.query(parser);
+
+    double used_time = std::chrono::duration_cast<std::chrono::duration<double>>(
+            std::chrono::high_resolution_clock::now() - start_time)
+            .count();
+
+    std::cout << "Used time: " << used_time << std::endl;
+
     return 0;
 }

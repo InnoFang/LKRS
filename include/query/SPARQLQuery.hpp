@@ -18,13 +18,15 @@ class SPARQLQuery {
 public:
     SPARQLQuery(const std::string& dbname);
     ~SPARQLQuery();
-    std::vector<std::vector<std::string>> query(const std::string& sparql);
+    std::vector<std::vector<std::string>> query(SPARQLParser& parser);
+    QueryPlan generateQueryPlan(const std::vector<std::string>& variables, const std::vector<Triple>& triples);
+
 private:
     std::string sparql_;
     std::string dbname_;
     Database *psoDB_;
-    QueryPlan generateQueryPlan(const std::vector<std::string>& variables, const std::vector<Triple>& triples);
     std::vector<std::vector<std::string>> execute(QueryPlan& queryPlan);
+    void generatePSOandMask(const Triple& triple, uint64_t& pso, uint64_t& mask);
 };
 
 #endif //RETRIEVE_SYSTEM_SPARQL_QUERY_H
