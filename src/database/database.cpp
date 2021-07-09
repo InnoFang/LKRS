@@ -38,8 +38,8 @@ Database::Database(const std::string& dbname) : dbname_(dbname) {
 
     // test
 //    for (const auto &pso : pso_) {
-//        uint64_t sid = (pso & s_mask_) >> (4 * so_hex_len_);
-//        uint64_t pid = (pso & p_mask_) >> (2 * 4 * so_hex_len_);
+//        uint64_t sid = (pso & s_mask_) >> (so_hex_len_ << 2);
+//        uint64_t pid = (pso & p_mask_) >> (so_hex_len_ << 3);
 //        uint64_t oid = (pso & o_mask_);
 ////        std::cout << sid << "\t" << pid << "\t" << oid << std::endl;
 ////        std::cout << id2so_[sid] << "\t" << id2p_[pid] << "\t" << id2so_[oid] << std::endl;
@@ -130,11 +130,11 @@ void Database::hexManipulation() {
     // get the hex-number size of 'p' and 'so'
     p_hex_len_ = calcHexLength(p_size_);
     so_hex_len_ = calcHexLength(so_size_);
-    p_mask_ = (1 << (4 * p_hex_len_)) - 1;
-    s_mask_ = o_mask_ = (1 << (4 * so_hex_len_)) - 1;
+    p_mask_ = (1 << (p_hex_len_ << 2)) - 1;
+    s_mask_ = o_mask_ = (1 << (so_hex_len_ << 2)) - 1;
 
-    p_mask_<<= (2 * 4 * so_hex_len_);
-    s_mask_<<= (4 * so_hex_len_);
+    p_mask_<<= (so_hex_len_ << 3);
+    s_mask_<<= (so_hex_len_ << 2);
 }
 
 uint64_t Database::convert2pso(const Triple &triple) {
@@ -142,8 +142,8 @@ uint64_t Database::convert2pso(const Triple &triple) {
     uint64_t sid = so2id_[triple.s];
     uint64_t oid = so2id_[triple.o];
 //    std::cout << "conver2pso: " << sid << "\t" << pid << "\t" << oid << std::endl;
-    uint64_t pso = (pid << (2 * 4 * so_hex_len_))
-                   | (sid << (4 * so_hex_len_))
+    uint64_t pso = (pid << (so_hex_len_ << 3))
+                   | (sid << (so_hex_len_ << 2))
                    | oid;
     return pso;
 }
