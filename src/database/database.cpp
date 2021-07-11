@@ -73,9 +73,9 @@ void Database::create(const std::string& datafile) {
             if (!p2id_.count(p)) {
                 p2id_[p] = p_size_ ++;
                 id2p_.push_back(p);
-                p_index_.push_back(0);
+                p_indices_.push_back(0);
             }
-            p_index_[p2id_[p]] += 1;
+            p_indices_[p2id_[p]] += 1;
 
             if (!so2id_.count(s)) {
                 so2id_[s] = so_size_ ++;
@@ -90,15 +90,15 @@ void Database::create(const std::string& datafile) {
         }
 
         // handle predicate prefix sum
-        p_range_.assign(p_index_.size() + 1, 0);
-        for (size_t i = 1; i <= p_index_.size(); ++ i) {
-            p_range_[i] = p_range_[i - 1] + p_index_[i - 1];
+        p_range_.assign(p_indices_.size() + 1, 0);
+        for (size_t i = 1; i <= p_indices_.size(); ++ i) {
+            p_range_[i] = p_range_[i - 1] + p_indices_[i - 1];
         }
 //        std::cout << "triple size: " << triple_size_ << std::endl;
 //        std::cout << "predicate size: " << id2p_.size() << std::endl;
 //        std::cout << "su/object size: " << id2so_.size() << std::endl;
 //        std::cout << "size of each predicate type:" << std::endl;
-//        for (const auto& pi: p_index_) {
+//        for (const auto& pi: p_indices_) {
 //            std::cout << pi << " ";
 //        }
 //        std::cout << "predicate range sum:" << std::endl;
@@ -181,7 +181,7 @@ bool Database::store() {
             << p_mask_ << "\n"
             << s_mask_ << "\n"
             << o_mask_ << "\n";
-        for (const auto& index: p_index_) {
+        for (const auto& index: p_indices_) {
             infoDataOut << index << " ";
         }
         infoDataOut << "\n";
@@ -252,9 +252,9 @@ bool Database::load() {
                     >> p_mask_
                     >> s_mask_
                     >> o_mask_ ;
-        p_index_.assign(p_size_, 0);
+        p_indices_.assign(p_size_, 0);
         for (size_t i = 0; i < p_size_; ++ i) {
-            infoDataIn >> p_index_[i];
+            infoDataIn >> p_indices_[i];
         }
         p_range_.assign(p_size_ + 1, 0);
         for (size_t i = 1; i <= p_size_; ++ i) {
@@ -334,7 +334,7 @@ std::string Database::getPbyId(const uint64_t id) {
     return id2p_[id];
 }
 
-std::string Database::getPbySO(const uint64_t id) {
+std::string Database::getSObyId(const uint64_t id) {
     return id2so_[id];
 }
 
@@ -356,5 +356,17 @@ int Database::getPHexLength() {
 
 int Database::getSOHexLength() {
     return so_hex_len_;
+}
+
+std::vector<uint64_t> Database::getPSO() const {
+    return pso_;
+}
+
+std::vector<int> Database::getPredicateIndices() const {
+    return p_indices_;
+}
+
+std::vector<int> Database::getPredicateRange() const {
+    return p_range_;
 }
 

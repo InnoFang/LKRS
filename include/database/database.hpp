@@ -33,12 +33,15 @@ public:
     uint64_t getIdByP(const std::string& p);
     uint64_t getIdBySO(const std::string& so);
     std::string getPbyId(const uint64_t id);
-    std::string getPbySO(const uint64_t id);
+    std::string getSObyId(const uint64_t id);
     uint64_t getPMask();
     uint64_t getSMask();
     uint64_t getOMask();
     int getPHexLength();
     int getSOHexLength();
+    std::vector<uint64_t> getPSO() const;
+    std::vector<int> getPredicateIndices() const;
+    std::vector<int> getPredicateRange() const;
 
 private:
     fs::path db_path_;
@@ -57,7 +60,7 @@ private:
     uint64_t p_mask_;
     uint64_t s_mask_;
     uint64_t o_mask_;
-    std::vector<int> p_index_;
+    std::vector<int> p_indices_;
     std::vector<int> p_range_;
     std::unordered_map<std::string, uint64_t> so2id_;
     std::unordered_map<std::string, uint64_t> p2id_;
