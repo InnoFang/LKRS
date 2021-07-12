@@ -23,6 +23,7 @@ int main (int argc, char* argv[]) {
     const std::string dbname = argv[1];
     const std::string datafile = argv[2];
     std::cout << dbname << " " << datafile << std::endl;
+
     auto start_time = std::chrono::high_resolution_clock::now();
 
     Database *db = new Database(dbname);
