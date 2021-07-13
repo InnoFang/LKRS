@@ -6,10 +6,11 @@
 
 Database::Database(const std::string& dbname) : dbname_(dbname) {
     db_path_.append("..").append("db").append(dbname);
-    info_path_.append(db_path_.string()).append("info");
-    pid_path_.append(db_path_.string()).append("pid");
-    soid_path_.append(db_path_.string()).append("soid");
-    pso_path_.append(db_path_.string()).append("spo");
+    std::string db_path_str = db_path_.string();
+    info_path_.append(db_path_str).append("info");
+    pid_path_.append(db_path_str).append("pid");
+    soid_path_.append(db_path_str).append("soid");
+    pso_path_.append(db_path_str).append("spo");
 
 //    std::ifstream read_db("..\\db\\databases", std::ifstream::binary);
 //    if (read_db.is_open()) {
@@ -57,6 +58,12 @@ void Database::create(const std::string& datafile) {
         triple_size_ = 0;
         p_size_ = 0;
         so_size_ = 0;
+        triples_.clear();
+        p2id_.clear();
+        id2p_.assign(1, "");
+        so2id_.clear();
+        id2so_.assign(1, "");
+        p_indices_.assign(1, 0);
         while (std::getline(infile, raw_triple_str)) {
             for (int i = raw_triple_str.length() - 1; i >= 0; -- i) {
                 if (raw_triple_str[i] == ' ' || raw_triple_str[i] == '.') {
@@ -71,19 +78,19 @@ void Database::create(const std::string& datafile) {
             std::string p = triple.p;
             std::string o = triple.o;
             if (!p2id_.count(p)) {
-                p2id_[p] = p_size_ ++;
+                p2id_[p] = ++ p_size_;
                 id2p_.push_back(p);
                 p_indices_.push_back(0);
             }
             p_indices_[p2id_[p]] += 1;
 
             if (!so2id_.count(s)) {
-                so2id_[s] = so_size_ ++;
+                so2id_[s] = ++ so_size_;
                 id2so_.push_back(s);
             }
 
             if (!so2id_.count(o)) {
-                so2id_[o] = so_size_ ++;
+                so2id_[o] = ++ so_size_;
                 id2so_.push_back(o);
             }
             ++ triple_size_;
@@ -181,11 +188,11 @@ bool Database::store() {
             << p_mask_ << "\n"
             << s_mask_ << "\n"
             << o_mask_ << "\n";
-        for (const auto& index: p_indices_) {
+        for (auto& index : p_indices_) {
             infoDataOut << index << " ";
         }
         infoDataOut << "\n";
-        for (const auto& range: p_range_) {
+        for (auto& range : p_range_) {
             infoDataOut << range << " ";
         }
         infoDataOut << "\n";
@@ -199,7 +206,7 @@ bool Database::store() {
 //    std::string pidData = baseDir + "pid";
     std::ofstream pidDataOut(pid_path_, std::ofstream::binary);
     if (pidDataOut.is_open()) {
-        for (size_t i = 0; i < p_size_; ++ i) {
+        for (size_t i = 1; i <= p_size_; ++ i) {
             pidDataOut << i << "\t" << id2p_[i] << "\n";
         }
         pidDataOut.close();
@@ -212,7 +219,7 @@ bool Database::store() {
     // soid su/object
     std::ofstream soidDataOut(soid_path_, std::ofstream::binary);
     if (soidDataOut.is_open()) {
-        for (size_t i = 0; i < so_size_; ++ i) {
+        for (size_t i = 1; i <= so_size_; ++ i) {
             soidDataOut << i << "\t" << id2so_[i] << "\n";
         }
         soidDataOut.close();
@@ -225,7 +232,7 @@ bool Database::store() {
 //    std::string psoData = baseDir + "pso";
     std::ofstream psoDataOut(pso_path_, std::ofstream::binary);
     if (psoDataOut.is_open()) {
-        for (const auto& pso: pso_) {
+        for (auto& pso : pso_) {
             psoDataOut << pso << "\n";
         }
         psoDataOut.close();
@@ -252,12 +259,12 @@ bool Database::load() {
                     >> p_mask_
                     >> s_mask_
                     >> o_mask_ ;
-        p_indices_.assign(p_size_, 0);
-        for (size_t i = 0; i < p_size_; ++ i) {
+        p_indices_.assign(p_size_ + 1, 0);
+        for (size_t i = 0; i < p_indices_.size(); ++ i) {
             infoDataIn >> p_indices_[i];
         }
-        p_range_.assign(p_size_ + 1, 0);
-        for (size_t i = 1; i <= p_size_; ++ i) {
+        p_range_.assign(p_size_ + 2, 0);
+        for (size_t i = 0; i < p_range_.size(); ++ i) {
             infoDataIn >> p_range_[i];
         }
         infoDataIn.close();
@@ -271,7 +278,7 @@ bool Database::load() {
     std::ifstream pidDataIn(pid_path_, std::ifstream::binary);
     if (pidDataIn.is_open()) {
         id2p_.clear();
-        id2p_.resize(p_size_);
+        id2p_.resize(p_size_ + 1);
         p2id_.clear();
         for (size_t i = 0; i < p_size_; ++ i) {
             uint64_t index;
@@ -290,7 +297,7 @@ bool Database::load() {
     std::ifstream soidDataIn(soid_path_, std::ifstream::binary);
     if (soidDataIn.is_open()) {
         id2so_.clear();
-        id2so_.resize(so_size_);
+        id2so_.resize(so_size_ + 1);
         so2id_.clear();
         for (size_t i = 0; i < so_size_; ++ i) {
             uint64_t index;
