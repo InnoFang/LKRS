@@ -7,6 +7,8 @@
 
 #include <string>
 #include <vector>
+#include <iterator>
+#include <algorithm>
 #include <unordered_map>
 #include "common/triple.hpp"
 #include "parser/SPARQLParser.hpp"
