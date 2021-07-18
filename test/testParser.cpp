@@ -4,14 +4,13 @@
 #include "parser/SPARQLParser.hpp"
 
 void testSPARQLParser(std::string &sparql) {
-    Parser parser;
-    parser.parse(sparql);
+    SPARQLParser parser(sparql);
     std::cout << "[parser] variables:" << std::endl;
     for (const auto &item : parser.getQueryVariables()) {
         std::cout << item << std::endl;
     }
 
-    std::cout << "[parser] triples:" << std::endl;
+    std::cout << "[parser] triples_:" << std::endl;
     for (const Triple &triple : parser.getQueryTriples()) {
         std::cout << triple.s << " " << triple.p << " " << triple.o << " " << std::endl;
     }
