@@ -49,7 +49,6 @@ QueryPlan SPARQLQuery::generateQueryPlan(const std::vector<std::string>& variabl
     for (const auto &triple : triples) {
         uint64_t pso, mask;
         generatePSOandMask(triple, pso, mask);
-//        std::cout << "query pso: " << pso << std::endl;
         pso_mask_pairs.emplace_back(pso, mask);
         auto p_index = (pso & psoDB_->getPMask()) >> (psoDB_->getSOHexLength() << 3);
         std::cout << "p_index: " << p_index << std::endl;
@@ -59,19 +58,14 @@ QueryPlan SPARQLQuery::generateQueryPlan(const std::vector<std::string>& variabl
         std::vector<uint64_t> p_range(predicate_indices[p_index]);
         auto ti = std::copy_if(pso_data.begin() + range_start, pso_data.begin() + range_end, p_range.begin(),
                      [&](uint64_t val){
-//            std::cout << val << " and " << mask<< std::endl;
-//            std::cout << val<< std::endl;
-//            auto s_p_o = decode_pso(val);
-//            std::cout << s_p_o[0] << '\t' << s_p_o[1] << "\t" << s_p_o[2] << std::endl;
             return ((val & mask) == pso);
-//            return true;
         });
         p_range.resize(std::distance(p_range.begin(), ti));
         qualified_range_[pso] = p_range;
     }
 
-    for (const auto& [pso, range_] : qualified_range_) {
-        std::cout << "PSO: " << pso << "\t the size of query result: " << range_.size() << std::endl;
+//    for (const auto& [pso, range_] : qualified_range_) {
+//        std::cout << "PSO: " << pso << "\t the size of query result: " << range_.size() << std::endl;
 //        auto s_p_o = decode_pso(pso);
 //        std::cout << s_p_o[0] << '\t' << s_p_o[1] << "\t" << s_p_o[2] << std::endl;
 //        std::cout << "\nQualified PSOs" << std::endl;
@@ -80,7 +74,7 @@ QueryPlan SPARQLQuery::generateQueryPlan(const std::vector<std::string>& variabl
 //            auto s_p_o = decode_pso(item);
 //            std::cout << s_p_o[0] << '\t' << s_p_o[1] << "\t" << s_p_o[2] << std::endl;
 //        }
-    }
+//    }
 
     QueryPlan queryPlan(variables, triples);
 
