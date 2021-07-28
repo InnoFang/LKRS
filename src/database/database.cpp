@@ -71,6 +71,7 @@ void Database::create(const std::string& datafile) {
                     break;
                 }
             }
+
             Triple triple(raw_triple_str);
             triples_.push_back(triple);
 
@@ -158,8 +159,10 @@ uint64_t Database::convert2pso(const Triple &triple) {
 void Database::generatePSO() {
     pso_.clear();
     pso_.resize(triple_size_);
-    for (size_t i = 0; i < triple_size_; ++ i) {
-        pso_[i] = convert2pso(triples_[i]);
+    int i = 0;
+    for (const auto &triple : triples_) {
+        pso_[i] = convert2pso(triple);
+        i ++;
     }
 
 //    auto cmp = [&](const uint64_t& a, const uint64_t& b) {

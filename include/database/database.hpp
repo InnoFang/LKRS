@@ -5,6 +5,7 @@
 #ifndef RETRIEVE_SYSTEM_DATABASE_H
 #define RETRIEVE_SYSTEM_DATABASE_H
 
+#include <list>
 #include <regex>
 #include <cmath>
 #include <string>
@@ -66,7 +67,7 @@ private:
     std::unordered_map<std::string, uint64_t> p2id_;
     std::vector<std::string> id2so_;
     std::vector<std::string> id2p_;
-    std::vector<Triple> triples_;
+    std::list<Triple> triples_;
     std::vector<uint64_t> pso_;
 };
 
