@@ -3,21 +3,21 @@
 //
 
 #include <iostream>
-#include <fstream>
 #include <string>
 #include <chrono>
 #include "database/database.hpp"
 
-static const auto io_speed_up = [] {
-    std::istringstream::sync_with_stdio(false);
-    std::ostringstream::sync_with_stdio(false);
-    std::ifstream::sync_with_stdio(false);
-    std::ofstream::sync_with_stdio(false);
-    std::ios::sync_with_stdio(false);
-    std::cin.tie(nullptr);
-    std::cout.tie(nullptr);
-    return 0;
-}();
+//static const auto io_speed_up = [] {
+//    std::istringstream::sync_with_stdio(false);
+//    std::ostringstream::sync_with_stdio(false);
+//    std::ifstream::sync_with_stdio(false);
+//    std::ofstream::sync_with_stdio(false);
+//    std::ios::sync_with_stdio(false);
+//    std::cin.tie(nullptr);
+//    std::cout.tie(nullptr);
+//    std::fstream::sync_with_stdio(false);
+//    return 0;
+//}();
 
 int main (int argc, char* argv[]) {
     const std::string dbname = argv[1];
@@ -34,7 +34,6 @@ int main (int argc, char* argv[]) {
             .count();
 
     std::cout << "Used time: " << used_time << std::endl;
-
     delete db;
 
     return 0;
