@@ -47,14 +47,13 @@ Database::Database(const std::string& dbname) : dbname_(dbname) {
 //    }
 }
 
-Database::~Database() {
-
-}
+Database::~Database() {}
 
 void Database::create(const std::string& datafile) {
     std::ifstream infile(datafile, std::ifstream::binary);
+    infile.sync_with_stdio(false);
+    infile.tie(nullptr);
     if (infile.is_open()) {
-        std::string raw_triple_str;
         triple_size_ = 0;
         p_size_ = 0;
         so_size_ = 0;
@@ -64,20 +63,12 @@ void Database::create(const std::string& datafile) {
         so2id_.clear();
         id2so_.assign(1, "");
         p_indices_.assign(1, 0);
-        while (std::getline(infile, raw_triple_str)) {
-            for (int i = raw_triple_str.length() - 1; i >= 0; -- i) {
-                if (raw_triple_str[i] == ' ' || raw_triple_str[i] == '.') {
-                    raw_triple_str = raw_triple_str.substr(0, i);
-                    break;
-                }
-            }
 
-            Triple triple(raw_triple_str);
-            triples_.push_back(triple);
+        std::string s, p, o, dot, line;
+        while (infile >> s >> p >> o >> dot) {
+            Triple triple(s, p, o);
+            triples_.emplace_back(triple);
 
-            std::string s = triple.s;
-            std::string p = triple.p;
-            std::string o = triple.o;
             if (!p2id_.count(p)) {
                 p2id_[p] = ++ p_size_;
                 id2p_.push_back(p);
@@ -102,30 +93,17 @@ void Database::create(const std::string& datafile) {
         for (size_t i = 1; i <= p_indices_.size(); ++ i) {
             p_range_[i] = p_range_[i - 1] + p_indices_[i - 1];
         }
-//        std::cout << "triple size: " << triple_size_ << std::endl;
-//        std::cout << "predicate size: " << id2p_.size() << std::endl;
-//        std::cout << "su/object size: " << id2so_.size() << std::endl;
-//        std::cout << "size of each predicate type:" << std::endl;
-//        for (const auto& pi: p_indices_) {
-//            std::cout << pi << " ";
-//        }
-//        std::cout << "predicate range sum:" << std::endl;
-//        for (const auto& pi: p_range_) {
-//            std::cout << pi << " ";
-//        }
-//        std::cout << std::endl;
 
         // handle hex-number manipulation
         hexManipulation();
 
         // generate PSO
         generatePSO();
+        store();
 
         infile.close();
-
-        store();
     } else {
-        std::cerr << "cannot open file: "<< datafile << std::endl;
+        std::cerr << "cannot open rdfFile: "<< datafile << std::endl;
     }
 }
 
@@ -149,7 +127,6 @@ uint64_t Database::convert2pso(const Triple &triple) {
     uint64_t pid = p2id_[triple.p];
     uint64_t sid = so2id_[triple.s];
     uint64_t oid = so2id_[triple.o];
-//    std::cout << "conver2pso: " << sid << "\t" << pid << "\t" << oid << std::endl;
     uint64_t pso = (pid << (so_hex_len_ << 3))
                    | (sid << (so_hex_len_ << 2))
                    | oid;
@@ -165,23 +142,16 @@ void Database::generatePSO() {
         i ++;
     }
 
-//    auto cmp = [&](const uint64_t& a, const uint64_t& b) {
-//        uint64_t a_p = (a & p_mask_);
-//        uint64_t a_so = (a & s_mask_) | (a & o_mask_);
-//        uint64_t b_p = (b & p_mask_);
-//        uint64_t b_so = (b & s_mask_) | (b & o_mask_);
-//        return a_p == b_p ? a_so < b_so : a_p < b_p;
-//    };
     std::sort(pso_.begin(), pso_.end());
 }
 
 bool Database::store() {
-
-//    std::string baseDir = "..\\db\\" + dbname_ + "\\";
     fs::create_directories(db_path_);
 
     // database file 1: info
     std::ofstream infoDataOut(info_path_, std::ofstream::binary);
+    infoDataOut.sync_with_stdio(false);
+    infoDataOut.tie(nullptr);
     if (infoDataOut.is_open()) {
         infoDataOut << triple_size_ << "\n"
             << p_size_ << "\n"
@@ -208,6 +178,8 @@ bool Database::store() {
     // database file 2: pid
 //    std::string pidData = baseDir + "pid";
     std::ofstream pidDataOut(pid_path_, std::ofstream::binary);
+    pidDataOut.sync_with_stdio(false);
+    pidDataOut.tie(nullptr);
     if (pidDataOut.is_open()) {
         for (size_t i = 1; i <= p_size_; ++ i) {
             pidDataOut << i << "\t" << id2p_[i] << "\n";
@@ -221,6 +193,8 @@ bool Database::store() {
     // database file 3: soid
     // soid su/object
     std::ofstream soidDataOut(soid_path_, std::ofstream::binary);
+    soidDataOut.sync_with_stdio(false);
+    soidDataOut.tie(nullptr);
     if (soidDataOut.is_open()) {
         for (size_t i = 1; i <= so_size_; ++ i) {
             soidDataOut << i << "\t" << id2so_[i] << "\n";
@@ -234,6 +208,8 @@ bool Database::store() {
     // database file 4: pso
 //    std::string psoData = baseDir + "pso";
     std::ofstream psoDataOut(pso_path_, std::ofstream::binary);
+    psoDataOut.sync_with_stdio(false);
+    psoDataOut.tie(nullptr);
     if (psoDataOut.is_open()) {
         for (auto& pso : pso_) {
             psoDataOut << pso << "\n";
@@ -379,4 +355,3 @@ std::vector<int> Database::getPredicateIndices() const {
 std::vector<int> Database::getPredicateRange() const {
     return p_range_;
 }
-
