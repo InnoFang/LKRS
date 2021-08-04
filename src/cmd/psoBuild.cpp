@@ -24,17 +24,21 @@ int main (int argc, char* argv[]) {
     const std::string datafile = argv[2];
     std::cout << dbname << " " << datafile << std::endl;
 
-    auto start_time = std::chrono::high_resolution_clock::now();
+    Database *db = nullptr;
+    try {
+        auto start_time = std::chrono::high_resolution_clock::now();
 
-    Database *db = new Database(dbname);
-    db->create(datafile);
+        db = new Database(dbname);
+        db->create(datafile);
 
-    double used_time = std::chrono::duration_cast<std::chrono::duration<double>>(
-            std::chrono::high_resolution_clock::now() - start_time)
-            .count();
-
-    std::cout << "Used time: " << used_time << std::endl;
+        double used_time = std::chrono::duration_cast<std::chrono::duration<double>>(
+                std::chrono::high_resolution_clock::now() - start_time)
+                .count();
+        std::cout << "Used time: " << used_time << std::endl;
+    } catch(std::exception &e) {
+        delete db;
+        return 0;
+    }
     delete db;
-
     return 0;
 }
