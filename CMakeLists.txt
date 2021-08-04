@@ -3,15 +3,16 @@ project(retrieve-system)
 
 set(CMAKE_CXX_STANDARD 17)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
+set(CMAKE_CXX_FLAGS "${CAMKE_CXX_FLAGS} -pthread")
 
 include_directories(include)
 
 add_subdirectory(src)
 
-add_executable(psoBuild src/main/psoBuild.cpp)
+add_executable(psoBuild src/cmd/psoBuild.cpp)
 target_link_libraries(psoBuild database common)
 
-add_executable(psoQuery src/main/psoQuery.cpp)
+add_executable(psoQuery src/cmd/psoQuery.cpp)
 target_link_libraries(psoQuery query parser database common)
 
 enable_testing()
