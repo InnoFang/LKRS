@@ -13,12 +13,11 @@
 #include "common/triple.hpp"
 #include "parser/SPARQLParser.hpp"
 #include "database/database.hpp"
-#include "database/DBLoadException.hpp"
 #include "QueryPlan.hpp"
 
 class SPARQLQuery {
 public:
-    SPARQLQuery(const std::string& dbname);
+    explicit SPARQLQuery(std::string& dbname);
     ~SPARQLQuery();
     std::vector<std::vector<std::string>> query(SPARQLParser& parser);
     QueryPlan generateQueryPlan(const std::vector<std::string>& variables, const std::vector<Triple>& triples);
@@ -26,7 +25,7 @@ public:
 private:
     std::string sparql_;
     std::string dbname_;
-    Database *psoDB_;
+    Database psoDB_;
     std::vector<std::vector<std::string>> execute(QueryPlan& queryPlan);
     void generatePSOandMask(const Triple& triple, uint64_t& pso, uint64_t& mask);
 };

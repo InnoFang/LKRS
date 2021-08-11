@@ -5,15 +5,11 @@
 #include "query/SPARQLQuery.hpp"
 #include <iostream>
 
-SPARQLQuery::SPARQLQuery(std::string& dbname): dbname_(dbname) {
-    // TODO: check database existence first
-    psoDB_ = new Database(dbname);
-    psoDB_->load();
+SPARQLQuery::SPARQLQuery(std::string& dbname): psoDB_(dbname) { 
+    psoDB_.load();
 }
 
-SPARQLQuery::~SPARQLQuery() {
-    delete psoDB_;
-}
+SPARQLQuery::~SPARQLQuery() = default;
 
 std::vector<std::vector<std::string>> SPARQLQuery::query(SPARQLParser& parser) {
     QueryPlan queryPlan = generateQueryPlan(parser.getQueryVariables(), parser.getQueryTriples());
@@ -23,29 +19,29 @@ std::vector<std::vector<std::string>> SPARQLQuery::query(SPARQLParser& parser) {
 QueryPlan SPARQLQuery::generateQueryPlan(const std::vector<std::string>& variables, const std::vector<Triple>& triples) {
 
     auto decode_pso = [&](uint64_t pso_) {
-        uint64_t sid = (pso_ & psoDB_->getSMask()) >> (psoDB_->getSOHexLength() << 2);
-        uint64_t pid = (pso_ & psoDB_->getPMask()) >> (psoDB_->getSOHexLength() << 3);
-        uint64_t oid = (pso_ & psoDB_->getOMask());
+        uint64_t sid = (pso_ & psoDB_.getSMask()) >> (psoDB_.getSOHexLength() << 2);
+        uint64_t pid = (pso_ & psoDB_.getPMask()) >> (psoDB_.getSOHexLength() << 3);
+        uint64_t oid = (pso_ & psoDB_.getOMask());
 
-        return std::vector<std::string> { psoDB_->getSObyId(sid),
-                                          psoDB_->getPbyId(pid),
-                                          psoDB_->getSObyId(oid) };
+        return std::vector<std::string> { psoDB_.getSObyId(sid),
+                                          psoDB_.getPbyId(pid),
+                                          psoDB_.getSObyId(oid) };
     };
 
     // <pso, qualified range of PSO corresponding predicate>
     std::unordered_map<uint64_t, std::vector<uint64_t>> qualified_range_;
     // select the range of predicate corresponding PSO values
-    std::vector<uint64_t> pso_data = psoDB_->getPSO();
+    std::vector<uint64_t> pso_data = psoDB_.getPSO();
 
-    auto predicate_indices = psoDB_->getPredicateIndices();
-    auto predicate_range = psoDB_->getPredicateRange();
+    auto predicate_indices = psoDB_.getPredicateIndices();
+    auto predicate_range = psoDB_.getPredicateRange();
 
     std::vector<std::pair<uint64_t, uint64_t>> pso_mask_pairs;
     for (const auto &triple : triples) {
         uint64_t pso, mask;
         generatePSOandMask(triple, pso, mask);
         pso_mask_pairs.emplace_back(pso, mask);
-        auto p_index = (pso & psoDB_->getPMask()) >> (psoDB_->getSOHexLength() << 3);
+        auto p_index = (pso & psoDB_.getPMask()) >> (psoDB_.getSOHexLength() << 3);
         std::cout << "p_index: " << p_index << std::endl;
         int range_start = predicate_range[p_index];
         int range_end = predicate_range[p_index + 1];
@@ -85,22 +81,23 @@ std::vector<std::vector<std::string>> SPARQLQuery::execute(QueryPlan& queryPlan)
 void SPARQLQuery::generatePSOandMask(const Triple &triple, uint64_t &pso, uint64_t &mask) {
     pso = mask = 0;
     if (triple.p[0] != '?') {
-        uint64_t pid = psoDB_->getIdByP(triple.p);
-        pso |= pid << (2 * 4 * psoDB_->getSOHexLength());
-        mask |= psoDB_->getPMask();
+        uint64_t pid = psoDB_.getIdByP(triple.p);
+        pso |= pid << (2 * 4 * psoDB_.getSOHexLength());
+        mask |= psoDB_.getPMask();
     }
     if (triple.s[0] != '?') {
-        uint64_t sid = psoDB_->getIdBySO(triple.s);
-        pso |= sid << (4 * psoDB_->getSOHexLength());
-        mask |= psoDB_->getSMask();
+        uint64_t sid = psoDB_.getIdBySO(triple.s);
+        pso |= sid << (4 * psoDB_.getSOHexLength());
+        mask |= psoDB_.getSMask();
     }
     if (triple.o[0] != '?') {
-        uint64_t oid = psoDB_->getIdBySO(triple.o);
+        uint64_t oid = psoDB_.getIdBySO(triple.o);
         pso |= oid;
-        mask |= psoDB_->getOMask();
+        mask |= psoDB_.getOMask();
     }
 //    std::cout << "P: " << triple.p << "\t" << "S: " << triple.s << "\t" << "O: " << triple.o << std::endl;
 //    std::cout << "PSO: " << pso << std::endl;
 //    std::cout << "mask: " << mask << std::endl;
 //    std::cout << std::endl;
 }
+
