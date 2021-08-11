@@ -5,15 +5,10 @@
 #include "query/SPARQLQuery.hpp"
 #include <iostream>
 
-SPARQLQuery::SPARQLQuery(const std::string& dbname): dbname_(dbname) {
-    try {
-        psoDB_ = new Database(dbname);
-        psoDB_->load();
-    } catch (const DBLoadException& e) {
-        std::cerr << e.what() << std::endl;
-        std::cerr << "please build db files first." << std::endl;  
-        exit(0);
-    }
+SPARQLQuery::SPARQLQuery(std::string& dbname): dbname_(dbname) {
+    // TODO: check database existence first
+    psoDB_ = new Database(dbname);
+    psoDB_->load();
 }
 
 SPARQLQuery::~SPARQLQuery() {
