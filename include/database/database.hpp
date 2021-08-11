@@ -6,23 +6,26 @@
 #define RETRIEVE_SYSTEM_DATABASE_H
 
 #include <list>
+#include <mutex>
 #include <regex>
 #include <cmath>
 #include <string>
+#include <thread>
+#include <utility>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <algorithm>
-#include <filesystem>
 #include <unordered_map>
-#include "common/triple.hpp"
-#include "DBLoadException.hpp"
+#include <boost/filesystem.hpp>
 
-namespace fs = std::filesystem;
+#include "common/triple.hpp"
+
+namespace fs = boost::filesystem;
 
 class Database {
 public:
-    Database(const std::string& dbname);
+    explicit Database(std::string& dbname);
     ~Database();
     void create(const std::string& datafile) ;
     bool store();
@@ -33,8 +36,8 @@ public:
     void generatePSO();
     uint64_t getIdByP(const std::string& p);
     uint64_t getIdBySO(const std::string& so);
-    std::string getPbyId(const uint64_t id);
-    std::string getSObyId(const uint64_t id);
+    std::string getPbyId(uint64_t id);
+    std::string getSObyId(uint64_t id);
     uint64_t getPMask();
     uint64_t getSMask();
     uint64_t getOMask();

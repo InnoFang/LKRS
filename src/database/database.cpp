@@ -4,54 +4,24 @@
 
 #include "database/database.hpp"
 
-Database::Database(const std::string& dbname) : dbname_(dbname) {
-    db_path_.append("..").append("db").append(dbname);
-    std::string db_path_str = db_path_.string();
-    info_path_.append(db_path_str).append("info");
-    pid_path_.append(db_path_str).append("pid");
-    soid_path_.append(db_path_str).append("soid");
-    pso_path_.append(db_path_str).append("spo");
+Database::Database(std::string& dbname) : dbname_(dbname) {
+    db_path_ = fs::current_path()
+            .parent_path()
+            .parent_path()
+            .append("db")
+            .append(dbname);
 
-//    std::ifstream read_db("..\\db\\databases", std::ifstream::binary);
-//    if (read_db.is_open()) {
-//        std::string db;
-//        while (read_db >> db) {
-//            if (db == dbname) {
-//                std::cout << "database: " << dbname << " found, load it now." << std::endl;
-//                load(dbname);
-//                break;
-//            }
-//        }
-//        if (read_db.eof()) {
-//            std::cout << "database: " << dbname << " has not been created, create it now" << std::endl;
-//            std::ofstream write_db("..\\db\\databases", std::ofstream::binary);
-//            if (write_db.is_open()) {
-//                write_db << dbname << std::endl;
-//                write_db.close();
-//
-//                create(datafile);
-//            } else {
-//                std::cerr << "cannot load or create database: " << dbname << std::endl;
-//            }
-//        }
-//        read_db.close();
-//    }
-
-    // test
-//    for (const auto &pso : pso_) {
-//        uint64_t sid = (pso & s_mask_) >> (so_hex_len_ << 2);
-//        uint64_t pid = (pso & p_mask_) >> (so_hex_len_ << 3);
-//        uint64_t oid = (pso & o_mask_);
-////        std::cout << sid << "\t" << pid << "\t" << oid << std::endl;
-////        std::cout << id2so_[sid] << "\t" << id2p_[pid] << "\t" << id2so_[oid] << std::endl;
-//    }
+    info_path_ = fs::path(db_path_).append("info");
+    pid_path_ = fs::path(db_path_).append("pid");
+    soid_path_ = fs::path(db_path_).append("soid");
+    pso_path_ = fs::path(db_path_).append("spo");
 }
 
 Database::~Database() {}
 
 void Database::create(const std::string& datafile) {
     std::ifstream infile(datafile, std::ifstream::binary);
-    infile.sync_with_stdio(false);
+    std::ifstream::sync_with_stdio(false);
     infile.tie(nullptr);
     if (infile.is_open()) {
         triple_size_ = 0;
@@ -108,7 +78,7 @@ void Database::create(const std::string& datafile) {
 }
 
 int Database::calcHexLength(size_t length) {
-    return ceil(log(length + 1) / log(16));
+    return int(ceil(log(length + 1) / log(16)));
 }
 
 void Database::hexManipulation() {
@@ -146,89 +116,107 @@ void Database::generatePSO() {
 }
 
 bool Database::store() {
+    fs::ofstream::sync_with_stdio(false);
     fs::create_directories(db_path_);
+    std::mutex info_lock, pid_lock, soid_lock, pso_lock;
 
     // database file 1: info
-    std::ofstream infoDataOut(info_path_, std::ofstream::binary);
-    infoDataOut.sync_with_stdio(false);
-    infoDataOut.tie(nullptr);
-    if (infoDataOut.is_open()) {
-        infoDataOut << triple_size_ << "\n"
-            << p_size_ << "\n"
-            << so_size_ << "\n"
-            << p_hex_len_ << "\n"
-            << so_hex_len_ << "\n"
-            << p_mask_ << "\n"
-            << s_mask_ << "\n"
-            << o_mask_ << "\n";
-        for (auto& index : p_indices_) {
-            infoDataOut << index << " ";
+    auto store_info = [&]() {
+        std::lock_guard<std::mutex> guard{info_lock};
+
+        fs::ofstream infoDataOut(info_path_, std::ofstream::binary);
+        infoDataOut.tie(nullptr);
+        if (infoDataOut.is_open()) {
+            std::cout << "store info" << std::endl;
+            infoDataOut << triple_size_ << "\n"
+                        << p_size_ << "\n"
+                        << so_size_ << "\n"
+                        << p_hex_len_ << "\n"
+                        << so_hex_len_ << "\n"
+                        << p_mask_ << "\n"
+                        << s_mask_ << "\n"
+                        << o_mask_ << "\n";
+            for (auto& index : p_indices_) {
+                infoDataOut << index << " ";
+            }
+            infoDataOut << "\n";
+            for (auto& range : p_range_) {
+                infoDataOut << range << " ";
+            }
+            infoDataOut << "\n";
+            infoDataOut.close();
+        } else {
+            std::cerr << "cannot create file: "<< info_path_ << std::endl;
         }
-        infoDataOut << "\n";
-        for (auto& range : p_range_) {
-            infoDataOut << range << " ";
-        }
-        infoDataOut << "\n";
-        infoDataOut.close();
-    } else {
-        std::cerr << "cannot create file: "<< info_path_ << std::endl;
-        return false;
-    }
+    };
 
     // database file 2: pid
-//    std::string pidData = baseDir + "pid";
-    std::ofstream pidDataOut(pid_path_, std::ofstream::binary);
-    pidDataOut.sync_with_stdio(false);
-    pidDataOut.tie(nullptr);
-    if (pidDataOut.is_open()) {
-        for (size_t i = 1; i <= p_size_; ++ i) {
-            pidDataOut << i << "\t" << id2p_[i] << "\n";
+    auto store_pid = [&]() {
+        std::lock_guard<std::mutex> guard{pid_lock};
+
+        fs::ofstream pidDataOut(pid_path_, std::ofstream::binary);
+        pidDataOut.tie(nullptr);
+        if (pidDataOut.is_open()) {
+            std::cout << "store pid" << std::endl;
+            for (size_t i = 1; i <= p_size_; ++ i) {
+                pidDataOut << i << "\t" << id2p_[i] << "\n";
+            }
+            pidDataOut.close();
+        } else {
+            std::cerr << "cannot create file: "<< pid_path_ << std::endl;
         }
-        pidDataOut.close();
-    } else {
-        std::cerr << "cannot create file: "<< pid_path_ << std::endl;
-        return false;
-    }
+    };
 
     // database file 3: soid
     // soid su/object
-    std::ofstream soidDataOut(soid_path_, std::ofstream::binary);
-    soidDataOut.sync_with_stdio(false);
-    soidDataOut.tie(nullptr);
-    if (soidDataOut.is_open()) {
-        for (size_t i = 1; i <= so_size_; ++ i) {
-            soidDataOut << i << "\t" << id2so_[i] << "\n";
+    auto store_soid = [&]() {
+        std::lock_guard<std::mutex> guard{soid_lock};
+
+        fs::ofstream soidDataOut(soid_path_, std::ofstream::binary);
+        soidDataOut.tie(nullptr);
+        if (soidDataOut.is_open()) {
+            std::cout << "store soid" << std::endl;
+            for (size_t i = 1; i <= so_size_; ++ i) {
+                soidDataOut << i << "\t" << id2so_[i] << "\n";
+            }
+            soidDataOut.close();
+        } else {
+            std::cerr << "cannot create file: "<< soid_path_ << std::endl;
         }
-        soidDataOut.close();
-    } else {
-        std::cerr << "cannot create file: "<< soid_path_ << std::endl;
-        return false;
-    }
+    };
 
     // database file 4: pso
-//    std::string psoData = baseDir + "pso";
-    std::ofstream psoDataOut(pso_path_, std::ofstream::binary);
-    psoDataOut.sync_with_stdio(false);
-    psoDataOut.tie(nullptr);
-    if (psoDataOut.is_open()) {
-        for (auto& pso : pso_) {
-            psoDataOut << pso << "\n";
+    auto store_pso = [&]() {
+        std::lock_guard<std::mutex> guard{pso_lock};
+
+        fs::ofstream psoDataOut(pso_path_, std::ofstream::binary);
+        psoDataOut.tie(nullptr);
+        if (psoDataOut.is_open()) {
+            std::cout << "store pso" << std::endl;
+            for (auto& pso : pso_) {
+                psoDataOut << pso << "\n";
+            }
+            psoDataOut.close();
+        } else {
+            std::cerr << "cannot create file: "<< pso_path_ << std::endl;
         }
-        psoDataOut.close();
-    } else {
-        std::cerr << "cannot create file: "<< pso_path_ << std::endl;
-        return false;
-    }
+    };
+
+    auto t_pso = std::thread(store_pso);
+    auto t_info = std::thread(store_info);
+    auto t_pid = std::thread(store_pid);
+    auto t_soid = std::thread(store_soid);
+    t_pso.join();
+    t_info.join();
+    t_pid.join();
+    t_soid.join();
+
     return true;
 }
 
 bool Database::load() {
-    if (!fs::exists(db_path_)) {
-        throw DBLoadException(db_path_.string());
-    }
-
     // database file 1: info
-    std::ifstream infoDataIn(info_path_, std::ifstream::binary);
+    std::ifstream infoDataIn(info_path_.string(), std::ifstream::binary);
     if (infoDataIn.is_open()) {
         infoDataIn  >> triple_size_
                     >> p_size_
@@ -239,12 +227,12 @@ bool Database::load() {
                     >> s_mask_
                     >> o_mask_ ;
         p_indices_.assign(p_size_ + 1, 0);
-        for (size_t i = 0; i < p_indices_.size(); ++ i) {
-            infoDataIn >> p_indices_[i];
+        for (int & p_index : p_indices_) {
+            infoDataIn >> p_index;
         }
         p_range_.assign(p_size_ + 2, 0);
-        for (size_t i = 0; i < p_range_.size(); ++ i) {
-            infoDataIn >> p_range_[i];
+        for (int & p_range : p_range_) {
+            infoDataIn >> p_range;
         }
         infoDataIn.close();
     } else {
@@ -254,7 +242,7 @@ bool Database::load() {
 
     // database file 2: pid
     // pid predicate
-    std::ifstream pidDataIn(pid_path_, std::ifstream::binary);
+    std::ifstream pidDataIn(pid_path_.string(), std::ifstream::binary);
     if (pidDataIn.is_open()) {
         id2p_.clear();
         id2p_.resize(p_size_ + 1);
@@ -273,7 +261,7 @@ bool Database::load() {
     }
 
     // database file 3: soid
-    std::ifstream soidDataIn(soid_path_, std::ifstream::binary);
+    std::ifstream soidDataIn(soid_path_.string(), std::ifstream::binary);
     if (soidDataIn.is_open()) {
         id2so_.clear();
         id2so_.resize(so_size_ + 1);
@@ -292,7 +280,7 @@ bool Database::load() {
     }
 
     // database file 4: pso
-    std::ifstream psoDataIn(pso_path_, std::ifstream::binary);
+    std::ifstream psoDataIn(pso_path_.string(), std::ifstream::binary);
     if (psoDataIn.is_open()) {
         pso_.clear();
         pso_.resize(triple_size_);
