@@ -31,7 +31,7 @@ public:
     bool store();
     bool load();
     void hexManipulation();
-    uint64_t convert2pso(const Triple& triple);
+    uint64_t convert2pso(const gPSO::triplet& triple);
     int calcHexLength(size_t length);
     void generatePSO();
     uint64_t getIdByP(const std::string& p);
@@ -70,7 +70,7 @@ private:
     std::unordered_map<std::string, uint64_t> p2id_;
     std::vector<std::string> id2so_;
     std::vector<std::string> id2p_;
-    std::list<Triple> triples_;
+    std::list<gPSO::triplet> triples_;
     std::vector<uint64_t> pso_;
 };
 
