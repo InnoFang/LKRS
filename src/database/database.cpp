@@ -5,6 +5,8 @@
 #include "database/database.hpp"
 
 Database::Database(std::string& dbname) : dbname_(dbname) {
+    using triplet = std::tuple<std::string, std::string, std::string>;
+
     db_path_ = fs::current_path()
             .parent_path()
             .parent_path()
@@ -15,6 +17,17 @@ Database::Database(std::string& dbname) : dbname_(dbname) {
     pid_path_ = fs::path(db_path_).append("pid");
     soid_path_ = fs::path(db_path_).append("soid");
     pso_path_ = fs::path(db_path_).append("spo");
+
+    /* initialize */
+    triple_size_ = 0;
+    p_size_ = 0;
+    so_size_ = 0;
+    triples_.clear();
+    p2id_.clear();
+    id2p_.assign(1, "");
+    so2id_.clear();
+    id2so_.assign(1, "");
+    p_indices_.assign(1, 0);
 }
 
 Database::~Database() {}
@@ -24,20 +37,10 @@ void Database::create(const std::string& datafile) {
     std::ifstream::sync_with_stdio(false);
     infile.tie(nullptr);
     if (infile.is_open()) {
-        triple_size_ = 0;
-        p_size_ = 0;
-        so_size_ = 0;
-        triples_.clear();
-        p2id_.clear();
-        id2p_.assign(1, "");
-        so2id_.clear();
-        id2so_.assign(1, "");
-        p_indices_.assign(1, 0);
-
         std::string s, p, o, dot, line;
         while (infile >> s >> p >> o >> dot) {
-            Triple triple(s, p, o);
-            triples_.emplace_back(triple);
+//            Triple triple(s, p, o);
+            triples_.emplace_back( s, p, o );
 
             if (!p2id_.count(p)) {
                 p2id_[p] = ++ p_size_;
@@ -93,23 +96,26 @@ void Database::hexManipulation() {
     s_mask_<<= (so_hex_len_ << 2);
 }
 
-uint64_t Database::convert2pso(const Triple &triple) {
-    uint64_t pid = p2id_[triple.p];
-    uint64_t sid = so2id_[triple.s];
-    uint64_t oid = so2id_[triple.o];
-    uint64_t pso = (pid << (so_hex_len_ << 3))
-                   | (sid << (so_hex_len_ << 2))
-                   | oid;
+uint64_t Database::convert2pso(const gPSO::triplet& triple) {
+//    uint64_t pid = p2id_[triple.p];
+//    uint64_t sid = so2id_[triple.s];
+//    uint64_t oid = so2id_[triple.o];
+//    uint64_t pso =  (pid << (so_hex_len_ << 3))
+//                   | (sid << (so_hex_len_ << 2))
+//                   | oid;
+    std::string s, p, o;
+    std::tie(s, p, o) = triple;
+    uint64_t pso = gPSO::encodePSO(p2id_[p], so2id_[s], so2id_[o], so_hex_len_);
     return pso;
 }
 
 void Database::generatePSO() {
     pso_.clear();
-    pso_.resize(triple_size_);
-    int i = 0;
+    pso_.reserve(triple_size_);
+    std::string s, p, o;
     for (const auto &triple : triples_) {
-        pso_[i] = convert2pso(triple);
-        i ++;
+        std::tie(s, p, o) = triple;
+        pso_.push_back(gPSO::encodePSO(p2id_[p], so2id_[s], so2id_[o], so_hex_len_));
     }
 
     std::sort(pso_.begin(), pso_.end());
