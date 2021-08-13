@@ -2,7 +2,7 @@
 #include <fstream>
 #include <string>
 #include <chrono>
-#include "parser/SPARQLParser.hpp"
+#include "parser/sparql_parser.hpp"
 #include "database/database.hpp"
 #include "query/sparql_query.hpp"
 
@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
 
     std::string sparql = readSPARQLFromFile(query_file);
     sparql_query sparqlQuery(dbname);
-    SPARQLParser parser(sparql);
+    sparql_parser parser(sparql);
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
