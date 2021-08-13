@@ -4,7 +4,7 @@
 #include <chrono>
 #include "parser/SPARQLParser.hpp"
 #include "database/database.hpp"
-#include "query/SPARQLQuery.hpp"
+#include "query/sparql_query.hpp"
 
 static const auto io_speed_up = [] {
     std::ios::sync_with_stdio(false);
@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
     std::string query_file = argv[2];
 
     std::string sparql = readSPARQLFromFile(query_file);
-    SPARQLQuery sparqlQuery(dbname);
+    sparql_query sparqlQuery(dbname);
     SPARQLParser parser(sparql);
 
     auto start_time = std::chrono::high_resolution_clock::now();
