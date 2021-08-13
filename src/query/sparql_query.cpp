@@ -2,21 +2,21 @@
 // Created by InnoFang on 2021/6/30.
 //
 
-#include "query/SPARQLQuery.hpp"
+#include "query/sparql_query.hpp"
 #include <iostream>
 
-SPARQLQuery::SPARQLQuery(std::string& dbname): psoDB_(dbname) { 
+sparql_query::sparql_query(std::string& dbname): psoDB_(dbname) {
     psoDB_.load();
 }
 
-SPARQLQuery::~SPARQLQuery() = default;
+sparql_query::~sparql_query() = default;
 
-std::vector<std::vector<std::string>> SPARQLQuery::query(SPARQLParser& parser) {
+std::vector<std::vector<std::string>> sparql_query::query(sparql_parser& parser) {
     QueryPlan queryPlan = generateQueryPlan(parser.getQueryVariables(), parser.getQueryTriples());
     return execute(queryPlan);
 }
 
-QueryPlan SPARQLQuery::generateQueryPlan(const std::vector<std::string>& variables, const std::vector<Triple>& triples) {
+QueryPlan sparql_query::generateQueryPlan(const std::vector<std::string>& variables, const std::vector<Triple>& triples) {
 
     auto decode_pso = [&](uint64_t pso_) {
         uint64_t sid = (pso_ & psoDB_.getSMask()) >> (psoDB_.getSOHexLength() << 2);
@@ -72,13 +72,13 @@ QueryPlan SPARQLQuery::generateQueryPlan(const std::vector<std::string>& variabl
     return queryPlan;
 }
 
-std::vector<std::vector<std::string>> SPARQLQuery::execute(QueryPlan& queryPlan) {
+std::vector<std::vector<std::string>> sparql_query::execute(QueryPlan& queryPlan) {
     auto queryResult = queryPlan.execute();
     std::vector<std::vector<std::string>> ans;
     return ans;
 }
 
-void SPARQLQuery::generatePSOandMask(const Triple &triple, uint64_t &pso, uint64_t &mask) {
+void sparql_query::generatePSOandMask(const Triple &triple, uint64_t &pso, uint64_t &mask) {
     pso = mask = 0;
     if (triple.p[0] != '?') {
         uint64_t pid = psoDB_.getIdByP(triple.p);

@@ -11,15 +11,15 @@
 #include <algorithm>
 #include <unordered_map>
 #include "common/triple.hpp"
-#include "parser/SPARQLParser.hpp"
+#include "parser/sparql_parser.hpp"
 #include "database/database.hpp"
 #include "QueryPlan.hpp"
 
-class SPARQLQuery {
+class sparql_query {
 public:
-    explicit SPARQLQuery(std::string& dbname);
-    ~SPARQLQuery();
-    std::vector<std::vector<std::string>> query(SPARQLParser& parser);
+    explicit sparql_query(std::string& dbname);
+    ~sparql_query();
+    std::vector<std::vector<std::string>> query(sparql_parser& parser);
     QueryPlan generateQueryPlan(const std::vector<std::string>& variables, const std::vector<Triple>& triples);
 
 private:
