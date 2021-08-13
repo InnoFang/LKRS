@@ -10,10 +10,10 @@
 #include <regex>
 #include "common/triple.hpp"
 
-class SPARQLParser {
+class sparql_parser {
 public:
-    SPARQLParser(const std::string &sparql);
-    ~SPARQLParser();
+    sparql_parser(const std::string &sparql);
+    ~sparql_parser();
     std::vector<std::string> getQueryVariables();
     std::vector<Triple> getQueryTriples();
     bool  isDistinct();

@@ -3,16 +3,16 @@
 //
 
 #include <iostream>
-#include "parser/SPARQLParser.hpp"
+#include "parser/sparql_parser.hpp"
 
-SPARQLParser::SPARQLParser(const std::string& sparql) {
+sparql_parser::sparql_parser(const std::string& sparql) {
     pattern_ = std::regex("SELECT\\s+(DISTINCT)?(.*)WHERE\\s*\\{([^}]+)\\}", std::regex::icase);
     parse(sparql);
 }
 
-SPARQLParser::~SPARQLParser() = default;
+sparql_parser::~sparql_parser() = default;
 
-void SPARQLParser::parse(const std::string &sparql) {
+void sparql_parser::parse(const std::string &sparql) {
     std::smatch match;
     if (std::regex_search(sparql, match, pattern_)) {
         if (match.size() > 2) {
@@ -29,7 +29,7 @@ void SPARQLParser::parse(const std::string &sparql) {
     }
 }
 
-void SPARQLParser::catchVariables(const std::string &raw_variable) {
+void sparql_parser::catchVariables(const std::string &raw_variable) {
     std::istringstream iss(raw_variable);
     using is_iter_str = std::istream_iterator<std::string>;
     auto beg = is_iter_str(iss);
@@ -37,7 +37,7 @@ void SPARQLParser::catchVariables(const std::string &raw_variable) {
     variables_.assign(beg, end);
 }
 
-void SPARQLParser::catchTriples(const std::string &raw_triple) {
+void sparql_parser::catchTriples(const std::string &raw_triple) {
     std::regex sep("\\.\\s");
     std::sregex_token_iterator tokens(raw_triple.cbegin(), raw_triple.cend(), sep, -1);
     std::sregex_token_iterator end;
@@ -46,14 +46,14 @@ void SPARQLParser::catchTriples(const std::string &raw_triple) {
     }
 }
 
-std::vector<std::string> SPARQLParser::getQueryVariables() {
+std::vector<std::string> sparql_parser::getQueryVariables() {
     return variables_;
 }
 
-std::vector<Triple> SPARQLParser::getQueryTriples() {
+std::vector<Triple> sparql_parser::getQueryTriples() {
     return triples_;
 }
 
-bool SPARQLParser::isDistinct() {
+bool sparql_parser::isDistinct() {
     return distinct_;
 }
