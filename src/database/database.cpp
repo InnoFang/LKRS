@@ -5,8 +5,6 @@
 #include "database/database.hpp"
 
 Database::Database(std::string& dbname) : dbname_(dbname) {
-    using triplet = std::tuple<std::string, std::string, std::string>;
-
     db_path_ = fs::current_path()
             .parent_path()
             .parent_path()
@@ -39,8 +37,8 @@ void Database::create(const std::string& datafile) {
     if (infile.is_open()) {
         std::string s, p, o, dot, line;
         while (infile >> s >> p >> o >> dot) {
-//            Triple triple(s, p, o);
-            triples_.emplace_back( s, p, o );
+//            Triplet triple(s, p, o);
+            triples_.push_back( {s, p, o} );
 
             if (!p2id_.count(p)) {
                 p2id_[p] = ++ p_size_;
