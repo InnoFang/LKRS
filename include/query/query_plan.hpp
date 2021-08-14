@@ -2,19 +2,19 @@
 // Created by InnoFang on 2021/7/2.
 //
 
-#ifndef RETRIEVE_SYSTEM_QUERYPLAN_HPP
-#define RETRIEVE_SYSTEM_QUERYPLAN_HPP
+#ifndef RETRIEVE_SYSTEM_QUERY_PLAN_HPP
+#define RETRIEVE_SYSTEM_QUERY_PLAN_HPP
 
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include "common/triple.hpp"
 
-class QueryPlan {
+class query_plan {
 public:
-    QueryPlan();
-    QueryPlan(const std::vector<std::string>& variables, const std::vector<Triple>& triples);
-    ~QueryPlan();
+    query_plan();
+    query_plan(const std::vector<std::string>& variables, const std::vector<Triple>& triples);
+    ~query_plan();
     void generate();
     std::vector<std::vector<std::string>> execute();
     void setVariables(std::vector<std::string>& variables);
@@ -26,4 +26,4 @@ private:
 };
 
 
-#endif //RETRIEVE_SYSTEM_QUERYPLAN_HPP
+#endif //RETRIEVE_SYSTEM_QUERY_PLAN_HPP
