@@ -9,12 +9,33 @@
 #include <sstream>
 #include <utility>
 #include <vector>
+#include <tuple>
 
 namespace gPSO {
     using triplet = std::tuple<std::string, std::string, std::string>;
     using pso_triplet = std::tuple<uint64_t , uint64_t, uint64_t>;
 
-    uint64_t encodePSO(uint64_t predicate, uint64_t subject, uint64_t object, int so_hex_len) {
+    extern uint64_t encodePSO(uint64_t predicate, uint64_t subject, uint64_t object, int so_hex_len);
+
+    extern pso_triplet decodePSO(uint64_t pso, int so_hex_len);
+
+    extern pso_triplet decodePSO(uint64_t pso, uint64_t so_mask, int so_hex_len);
+}
+
+
+class Triplet {
+public:
+    std::string s;
+    std::string p;
+    std::string o;
+    Triplet();
+    Triplet(std::string& s, std::string& p, std::string& o);
+    explicit Triplet(std::tuple<std::string, std::string, std::string>& triplet);
+    explicit Triplet(std::string& raw_triple);
+    ~Triplet();
+    Triplet(const Triplet& triple);
+
+    static uint64_t encodePSO(uint64_t predicate, uint64_t subject, uint64_t object, int so_hex_len) noexcept {
         uint64_t pso = predicate;
         pso <<= (so_hex_len << 2);
         pso |= subject;
@@ -23,7 +44,7 @@ namespace gPSO {
         return pso;
     }
 
-    pso_triplet decodePSO(uint64_t pso, int so_hex_len) {
+    static std::tuple<uint64_t , uint64_t, uint64_t> decodePSO(uint64_t pso, int so_hex_len) noexcept {
         uint64_t so_mask = (1 << (so_hex_len << 2)) - 1;
         uint64_t oid = (pso & so_mask);
         pso >>= (so_hex_len << 2);
@@ -34,7 +55,7 @@ namespace gPSO {
         return { pid, sid, oid };
     };
 
-    pso_triplet decodePSO(uint64_t pso, uint64_t so_mask, int so_hex_len) {
+    static std::tuple<uint64_t , uint64_t, uint64_t> decodePSO(uint64_t pso, uint64_t so_mask, int so_hex_len) noexcept {
         uint64_t oid = (pso & so_mask);
         pso >>= (so_hex_len << 2);
         uint64_t sid = (pso & so_mask);
@@ -43,18 +64,6 @@ namespace gPSO {
 
         return { pid, sid, oid };
     };
-}
-
-class Triple {
-public:
-    std::string s;
-    std::string p;
-    std::string o;
-    Triple();
-    Triple(const std::string& s, const std::string& p, const std::string& o);
-    Triple(const std::string& raw_triple);
-    ~Triple();
-    Triple(const Triple& triple);
 };
 
 #endif //PARSER_TRIPLE_HPP_
