@@ -19,7 +19,7 @@
 #include <unordered_map>
 #include <boost/filesystem.hpp>
 
-#include "common/triple.hpp"
+#include "common/triplet.hpp"
 
 namespace fs = boost::filesystem;
 

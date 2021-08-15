@@ -8,21 +8,21 @@
 #include <vector>
 #include <string>
 #include <regex>
-#include "common/triple.hpp"
+#include "common/triplet.hpp"
 
 class sparql_parser {
 public:
     sparql_parser(const std::string &sparql);
     ~sparql_parser();
     std::vector<std::string> getQueryVariables();
-    std::vector<Triple> getQueryTriples();
+    std::vector<gPSO::triplet> getQueryTriples();
     bool  isDistinct();
 
 private:
     std::regex pattern_;
     std::string sparql_;
     std::vector<std::string> variables_;
-    std::vector<Triple> triples_;
+    std::vector<gPSO::triplet> triples_;
     bool distinct_;
     void parse(const std::string &sparql);
     void catchVariables(const std::string& raw_variable);
