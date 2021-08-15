@@ -12,11 +12,11 @@ sparql_query::sparql_query(std::string& dbname): psoDB_(dbname) {
 sparql_query::~sparql_query() = default;
 
 std::vector<std::vector<std::string>> sparql_query::query(sparql_parser& parser) {
-    QueryPlan queryPlan = generateQueryPlan(parser.getQueryVariables(), parser.getQueryTriples());
+    query_plan queryPlan = generateQueryPlan(parser.getQueryVariables(), parser.getQueryTriples());
     return execute(queryPlan);
 }
 
-QueryPlan sparql_query::generateQueryPlan(const std::vector<std::string>& variables, const std::vector<Triple>& triples) {
+query_plan sparql_query::generateQueryPlan(const std::vector<std::string>& variables, const std::vector<gPSO::triplet>& triples) {
 
     auto decode_pso = [&](uint64_t pso_) {
         uint64_t sid = (pso_ & psoDB_.getSMask()) >> (psoDB_.getSOHexLength() << 2);
@@ -67,31 +67,33 @@ QueryPlan sparql_query::generateQueryPlan(const std::vector<std::string>& variab
 //        }
 //    }
 
-    QueryPlan queryPlan(variables, triples);
+    query_plan queryPlan(variables, triples);
 
     return queryPlan;
 }
 
-std::vector<std::vector<std::string>> sparql_query::execute(QueryPlan& queryPlan) {
+std::vector<std::vector<std::string>> sparql_query::execute(query_plan& queryPlan) {
     auto queryResult = queryPlan.execute();
     std::vector<std::vector<std::string>> ans;
     return ans;
 }
 
-void sparql_query::generatePSOandMask(const Triple &triple, uint64_t &pso, uint64_t &mask) {
+void sparql_query::generatePSOandMask(const gPSO::triplet &triplet, uint64_t& pso, uint64_t& mask) {
     pso = mask = 0;
-    if (triple.p[0] != '?') {
-        uint64_t pid = psoDB_.getIdByP(triple.p);
+    std::string s, p, o;
+    std::tie(s, p, o) = triplet;
+    if (p[0] != '?') {
+        uint64_t pid = psoDB_.getIdByP(p);
         pso |= pid << (2 * 4 * psoDB_.getSOHexLength());
         mask |= psoDB_.getPMask();
     }
-    if (triple.s[0] != '?') {
-        uint64_t sid = psoDB_.getIdBySO(triple.s);
+    if (s[0] != '?') {
+        uint64_t sid = psoDB_.getIdBySO(s);
         pso |= sid << (4 * psoDB_.getSOHexLength());
         mask |= psoDB_.getSMask();
     }
-    if (triple.o[0] != '?') {
-        uint64_t oid = psoDB_.getIdBySO(triple.o);
+    if (o[0] != '?') {
+        uint64_t oid = psoDB_.getIdBySO(o);
         pso |= oid;
         mask |= psoDB_.getOMask();
     }

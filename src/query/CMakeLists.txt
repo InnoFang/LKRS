@@ -1,9 +1,8 @@
 set(THIS query)
-project(${THIS})
 
 set(SOURCE_FILES
-        SPARQLQuery.cpp
-        QueryPlan.cpp
+        sparql_query.cpp
+        query_plan.cpp
         )
 
 add_library(${THIS} STATIC ${SOURCE_FILES})

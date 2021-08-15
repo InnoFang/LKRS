@@ -6,7 +6,7 @@
 #include "parser/sparql_parser.hpp"
 
 sparql_parser::sparql_parser(const std::string& sparql) {
-    pattern_ = std::regex("SELECT\\s+(DISTINCT)?(.*)WHERE\\s*\\{([^}]+)\\}", std::regex::icase);
+    pattern_ = std::regex(R"(SELECT\s+(DISTINCT)?(.*)WHERE\s*\{([^}]+)\})", std::regex::icase);
     parse(sparql);
 }
 
@@ -41,8 +41,12 @@ void sparql_parser::catchTriples(const std::string &raw_triple) {
     std::regex sep("\\.\\s");
     std::sregex_token_iterator tokens(raw_triple.cbegin(), raw_triple.cend(), sep, -1);
     std::sregex_token_iterator end;
+
+    std::string s, p, o;
     for(; tokens != end; ++ tokens) {
-        triples_.emplace_back(Triple(*tokens));
+        std::istringstream iss(*tokens);
+        iss >> s >> p >> o;
+        triples_.emplace_back(s, p, o);
     }
 }
 
@@ -50,7 +54,7 @@ std::vector<std::string> sparql_parser::getQueryVariables() {
     return variables_;
 }
 
-std::vector<Triple> sparql_parser::getQueryTriples() {
+std::vector<gPSO::triplet> sparql_parser::getQueryTriples() {
     return triples_;
 }
 

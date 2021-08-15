@@ -1,6 +1,5 @@
 add_subdirectory(cmd)
 add_subdirectory(common)
 add_subdirectory(database)
-#add_subdirectory(parser)
-#add_subdirectory(query)
-
+add_subdirectory(parser)
+add_subdirectory(query)

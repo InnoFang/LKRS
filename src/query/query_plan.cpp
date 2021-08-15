@@ -8,7 +8,7 @@ query_plan::query_plan() {
 
 }
 
-query_plan::query_plan(const std::vector<std::string>& variables, const std::vector<Triple>& triples)
+query_plan::query_plan(const std::vector<std::string>& variables, const std::vector<gPSO::triplet>& triples)
     : variables_(variables), triples_(triples) {
 
 }
@@ -21,7 +21,7 @@ void query_plan::setVariables(std::vector<std::string> &variables) {
     variables_ = variables;
 }
 
-void query_plan::setTriples(std::vector<Triple> &triples) {
+void query_plan::setTriples(std::vector<gPSO::triplet> &triples) {
     triples_ = triples;
 }
 
