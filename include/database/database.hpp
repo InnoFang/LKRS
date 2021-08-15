@@ -9,6 +9,7 @@
 #include <mutex>
 #include <regex>
 #include <cmath>
+#include <tuple>
 #include <string>
 #include <thread>
 #include <utility>
@@ -34,19 +35,9 @@ public:
     uint64_t convert2pso(const gPSO::triplet& triple);
     int calcHexLength(size_t length);
     void generatePSO();
-    uint64_t getIdByP(const std::string& p);
-    uint64_t getIdBySO(const std::string& so);
-    std::string getPbyId(uint64_t id);
-    std::string getSObyId(uint64_t id);
-    uint64_t getPMask();
-    uint64_t getSMask();
-    uint64_t getOMask();
-    int getPHexLength();
-    int getSOHexLength();
-    std::vector<uint64_t> getPSO() const;
-    std::vector<int> getPredicateIndices() const;
-    std::vector<int> getPredicateRange() const;
-
+    std::tuple<uint64_t, uint64_t> getVarPSOAndMask(const gPSO::triplet& triplet);
+    std::vector<uint64_t> getQualifiedPSO(uint64_t query_pso, uint64_t query_pso_mask);
+    std::string Database::mapQueryResult(uint64_t &query_result) ;
 private:
     fs::path db_path_;
     fs::path info_path_;

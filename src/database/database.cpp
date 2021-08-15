@@ -300,50 +300,50 @@ bool Database::load() {
     return true;
 }
 
-uint64_t Database::getIdByP(const std::string &p) {
-    return p2id_[p];
+std::tuple<uint64_t, uint64_t> Database::getVarPSOAndMask(const gPSO::triplet& triplet) {
+    std::string s, p, o;
+    std::tie(s, p, o) = triplet;
+
+    uint64_t predicate = (p[0] == '?') ? 0 : p2id_[p];
+    uint64_t subject = (s[0] == '?') ? 0 : so2id_[s];
+    uint64_t object = (o[0] == '?') ? 0 : so2id_[o];
+
+    uint64_t pso = gPSO::encodePSO(predicate, subject, object, so_hex_len_);
+    uint64_t pso_mask = (predicate == 0 ? 0 : p_mask_)
+                        | (subject == 0 ? 0 : s_mask_)
+                        | (object == 0 ? 0 : o_mask_);
+    return {pso, pso_mask};
 }
 
-uint64_t Database::getIdBySO(const std::string &so) {
-    return so2id_[so];
+std::vector<uint64_t> Database::getQualifiedPSO(uint64_t query_pso, uint64_t query_pso_mask) {
+    if ((query_pso & p_mask_) == 0) {
+        std::cout << "without predicate" << std::endl;
+        return {};
+    }
+    uint64_t p, s, o;
+    std::tie(p, s, o) = gPSO::decodePSO(query_pso, query_pso_mask, so_hex_len_);
+
+    int p_size = p_indices_[p];
+    std::vector<uint64_t> qualified_pso;
+    qualified_pso.reserve(p_size);
+
+    int start = p_range_[p], end = p_range_[p + 1];
+    std::for_each(pso_.begin() + start, pso_.begin() + end, [&](uint64_t pso) {
+        if ((pso & query_pso_mask) == query_pso) {
+            qualified_pso.emplace_back(pso & (~query_pso_mask));
+        }
+    });
+    return qualified_pso;
 }
 
-std::string Database::getPbyId(const uint64_t id) {
-    return id2p_[id];
+std::string Database::mapQueryResult(uint64_t &query_result) {
+    uint64_t p, s, o;
+    std::tie(p, s, o) = gPSO::decodePSO(query_result, so_hex_len_);
+    if (s != 0) {
+        return id2so_[s];
+    } else if (o != 0) {
+        return id2so_[o];
+    }
+    return "";
 }
 
-std::string Database::getSObyId(const uint64_t id) {
-    return id2so_[id];
-}
-
-uint64_t Database::getPMask() {
-    return p_mask_;
-}
-
-uint64_t Database::getSMask() {
-    return s_mask_;
-}
-
-uint64_t Database::getOMask() {
-    return o_mask_;
-}
-
-int Database::getPHexLength() {
-    return p_hex_len_;
-}
-
-int Database::getSOHexLength() {
-    return so_hex_len_;
-}
-
-std::vector<uint64_t> Database::getPSO() const {
-    return pso_;
-}
-
-std::vector<int> Database::getPredicateIndices() const {
-    return p_indices_;
-}
-
-std::vector<int> Database::getPredicateRange() const {
-    return p_range_;
-}
