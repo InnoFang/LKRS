@@ -38,7 +38,7 @@ void Database::create(const std::string& datafile) {
         std::string s, p, o, dot, line;
         while (infile >> s >> p >> o >> dot) {
 //            Triplet triple(s, p, o);
-            triples_.push_back( {s, p, o} );
+            triples_.emplace_back( s, p, o );
 
             if (!p2id_.count(p)) {
                 p2id_[p] = ++ p_size_;
@@ -92,19 +92,6 @@ void Database::hexManipulation() {
 
     p_mask_<<= (so_hex_len_ << 3);
     s_mask_<<= (so_hex_len_ << 2);
-}
-
-uint64_t Database::convert2pso(const gPSO::triplet& triple) {
-//    uint64_t pid = p2id_[triple.p];
-//    uint64_t sid = so2id_[triple.s];
-//    uint64_t oid = so2id_[triple.o];
-//    uint64_t pso =  (pid << (so_hex_len_ << 3))
-//                   | (sid << (so_hex_len_ << 2))
-//                   | oid;
-    std::string s, p, o;
-    std::tie(s, p, o) = triple;
-    uint64_t pso = gPSO::encodePSO(p2id_[p], so2id_[s], so2id_[o], so_hex_len_);
-    return pso;
 }
 
 void Database::generatePSO() {
@@ -315,7 +302,7 @@ std::tuple<uint64_t, uint64_t> Database::getVarPSOAndMask(const gPSO::triplet& t
     return {pso, pso_mask};
 }
 
-std::vector<uint64_t> Database::getQualifiedPSO(uint64_t query_pso, uint64_t query_pso_mask) {
+std::vector<std::pair<uint64_t, uint64_t>> Database::getQualifiedSOList(uint64_t query_pso, uint64_t query_pso_mask) {
     if ((query_pso & p_mask_) == 0) {
         std::cout << "without predicate" << std::endl;
         return {};
@@ -324,26 +311,21 @@ std::vector<uint64_t> Database::getQualifiedPSO(uint64_t query_pso, uint64_t que
     std::tie(p, s, o) = gPSO::decodePSO(query_pso, query_pso_mask, so_hex_len_);
 
     int p_size = p_indices_[p];
-    std::vector<uint64_t> qualified_pso;
-    qualified_pso.reserve(p_size);
+    std::vector<std::pair<uint64_t, uint64_t>> qualified_so;
+    qualified_so.reserve(p_size);
 
     int start = p_range_[p], end = p_range_[p + 1];
     std::for_each(pso_.begin() + start, pso_.begin() + end, [&](uint64_t pso) {
         if ((pso & query_pso_mask) == query_pso) {
-            qualified_pso.emplace_back(pso & (~query_pso_mask));
+            uint64_t match_pso = pso & (~query_pso_mask);
+            uint64_t pid, sid, oid;
+            std::tie(pid, sid, oid) = gPSO::decodePSO(match_pso, so_hex_len_);
+            qualified_so.emplace_back(sid, oid);
         }
     });
-    return qualified_pso;
+    return qualified_so;
 }
 
-std::string Database::mapQueryResult(uint64_t &query_result) {
-    uint64_t p, s, o;
-    std::tie(p, s, o) = gPSO::decodePSO(query_result, so_hex_len_);
-    if (s != 0) {
-        return id2so_[s];
-    } else if (o != 0) {
-        return id2so_[o];
-    }
-    return "";
+std::string Database::getSOByID(uint64_t id) {
+    return id2so_[id];
 }
-

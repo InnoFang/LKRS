@@ -32,12 +32,11 @@ public:
     bool store();
     bool load();
     void hexManipulation();
-    uint64_t convert2pso(const gPSO::triplet& triple);
     int calcHexLength(size_t length);
     void generatePSO();
     std::tuple<uint64_t, uint64_t> getVarPSOAndMask(const gPSO::triplet& triplet);
-    std::vector<uint64_t> getQualifiedPSO(uint64_t query_pso, uint64_t query_pso_mask);
-    std::string Database::mapQueryResult(uint64_t &query_result) ;
+    std::vector<std::pair<uint64_t, uint64_t>> getQualifiedSOList(uint64_t query_pso, uint64_t query_pso_mask);
+    std::string getSOByID(uint64_t id);
 private:
     fs::path db_path_;
     fs::path info_path_;
