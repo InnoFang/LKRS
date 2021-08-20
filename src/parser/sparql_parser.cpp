@@ -5,6 +5,8 @@
 #include <iostream>
 #include "parser/sparql_parser.hpp"
 
+sparql_parser::sparql_parser() {}
+
 sparql_parser::sparql_parser(const std::string& sparql) {
     pattern_ = std::regex(R"(SELECT\s+(DISTINCT)?(.*)WHERE\s*\{([^}]+)\})", std::regex::icase);
     parse(sparql);

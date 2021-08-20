@@ -12,7 +12,8 @@
 
 class sparql_parser {
 public:
-    sparql_parser(const std::string &sparql);
+    sparql_parser();
+    explicit sparql_parser(const std::string &sparql);
     ~sparql_parser();
     std::vector<std::string> getQueryVariables();
     std::vector<gPSO::triplet> getQueryTriples();
@@ -23,7 +24,7 @@ private:
     std::string sparql_;
     std::vector<std::string> variables_;
     std::vector<gPSO::triplet> triples_;
-    bool distinct_;
+    bool distinct_{};
     void parse(const std::string &sparql);
     void catchVariables(const std::string& raw_variable);
     void catchTriples(const std::string& raw_triple);
