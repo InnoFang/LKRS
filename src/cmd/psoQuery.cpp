@@ -40,13 +40,28 @@ int main(int argc, char** argv) {
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    sparqlQuery.query(parser);
+    auto result = sparqlQuery.query(parser);
 
-    double used_time = std::chrono::duration_cast<std::chrono::duration<double>>(
-            std::chrono::high_resolution_clock::now() - start_time)
-            .count();
+    auto stop_time = std::chrono::high_resolution_clock::now();
 
-    std::cout << "Used time: " << used_time << std::endl;
+    std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
+
+    if (result.empty()) {
+        std::cout << "0 result" << std::endl;
+    } else {
+        std::cout << result.size() << " result(s)" << std::endl;
+        auto variables = parser.getQueryVariables();
+        std::copy(variables.begin(), variables.end(), std::ostream_iterator<std::string>(std::cout, "\t"));
+        std::cout << std::endl;
+        for (auto &row : sparqlQuery.mapQueryResult(result)) {
+            for (auto &variable: variables) {
+                std::cout << row[variable] << "\t";
+            }
+            std::cout << std::endl;
+        }
+    }
+
+    std::cout << "Used time: " << used_time.count() << " ms." << std::endl;
 
     return 0;
 }
