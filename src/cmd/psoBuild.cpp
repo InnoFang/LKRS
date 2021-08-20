@@ -23,10 +23,10 @@ int main (int argc, char* argv[]) {
 
     db.create(datafile);
 
-    double used_time = std::chrono::duration_cast<std::chrono::duration<double>>(
-            std::chrono::high_resolution_clock::now() - start_time)
-            .count();
+    auto stop_time = std::chrono::high_resolution_clock::now();
 
-    std::cout << "Used time: " << used_time << std::endl;
+    std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
+
+    std::cout << "Used time: " << used_time.count() << " ms." << std::endl;
     return 0;
 }
