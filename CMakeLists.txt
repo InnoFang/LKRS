@@ -15,12 +15,8 @@ else()
     message(WARNING "The file conanbuildinfo.cmake doesn't exist, you have to run conan install first")
 endif()
 
-
 include_directories(include)
 add_subdirectory(src)
-
-#add_executable(psoQuery src/cmd/psoQuery.cpp)
-#target_link_libraries(psoQuery query parser database common ${CONAN_LIBS})
 
 #enable_testing()
 #add_subdirectory(test)
