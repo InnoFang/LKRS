@@ -10,11 +10,11 @@
 #include <regex>
 #include "common/triplet.hpp"
 
-class sparql_parser {
+class SparqlParser {
 public:
-    sparql_parser();
-    explicit sparql_parser(const std::string &sparql);
-    ~sparql_parser();
+    SparqlParser();
+    explicit SparqlParser(const std::string &sparql);
+    ~SparqlParser();
     std::vector<std::string> getQueryVariables();
     std::vector<gPSO::triplet> getQueryTriples();
     bool  isDistinct();
