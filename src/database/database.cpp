@@ -118,7 +118,6 @@ bool Database::store() {
         fs::ofstream infoDataOut(info_path_, std::ofstream::binary);
         infoDataOut.tie(nullptr);
         if (infoDataOut.is_open()) {
-            std::cout << "store info" << std::endl;
             infoDataOut << triple_size_ << "\n"
                         << p_size_ << "\n"
                         << so_size_ << "\n"
@@ -148,7 +147,6 @@ bool Database::store() {
         fs::ofstream pidDataOut(pid_path_, std::ofstream::binary);
         pidDataOut.tie(nullptr);
         if (pidDataOut.is_open()) {
-            std::cout << "store pid" << std::endl;
             for (size_t i = 1; i <= p_size_; ++ i) {
                 pidDataOut << i << "\t" << id2p_[i] << "\n";
             }
@@ -166,7 +164,6 @@ bool Database::store() {
         fs::ofstream soidDataOut(soid_path_, std::ofstream::binary);
         soidDataOut.tie(nullptr);
         if (soidDataOut.is_open()) {
-            std::cout << "store soid" << std::endl;
             for (size_t i = 1; i <= so_size_; ++ i) {
                 soidDataOut << i << "\t" << id2so_[i] << "\n";
             }
@@ -183,7 +180,6 @@ bool Database::store() {
         fs::ofstream psoDataOut(pso_path_, std::ofstream::binary);
         psoDataOut.tie(nullptr);
         if (psoDataOut.is_open()) {
-            std::cout << "store pso" << std::endl;
             for (auto& pso : pso_) {
                 psoDataOut << pso << "\n";
             }
