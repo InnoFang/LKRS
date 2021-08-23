@@ -20,18 +20,16 @@
 using map_str_int = std::unordered_map<std::string, uint64_t>;
 using vec_map_str_int = std::vector<std::unordered_map<std::string, uint64_t>>;
 
-auto query_queue_cmp = [](vec_map_str_int& v1, vec_map_str_int& v2) { return v1.size() > v2.size(); };
-using QueryQueue = std::priority_queue<vec_map_str_int, std::vector<vec_map_str_int>, decltype(query_queue_cmp)>;
-using QueryPlan = std::deque<vec_map_str_int>;
+using QueryQueue = std::deque<vec_map_str_int>;
 
 class SparqlQuery {
 public:
     explicit SparqlQuery(std::string& dbname);
     ~SparqlQuery();
     vec_map_str_int query(SparqlParser& parser);
-    QueryQueue preprocessing(const std::vector<gPSO::triplet>& triplets);
-    QueryPlan generateQueryPlan(QueryQueue& query_queue);
-    vec_map_str_int execute(QueryPlan& queryPlan);
+    QueryQueue generateQueryQueue(const std::vector<gPSO::triplet>& triplets);
+    std::vector<gPSO::triplet> rearrangeQueryPlan(std::vector<std::pair<gPSO::triplet, size_t>>& triplet_size_list);
+    vec_map_str_int execute(QueryQueue& query_queue);
     std::vector<std::unordered_map<std::string, std::string>> mapQueryResult(vec_map_str_int& query_result);
 
 private:
