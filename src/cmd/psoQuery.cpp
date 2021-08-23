@@ -16,7 +16,7 @@ static const auto io_speed_up = [] {
 std::string readSPARQLFromFile(const std::string& filepath) {
     std::ifstream infile(filepath, std::ios::in);
     std::ostringstream buf;
-    std::string sparql = "";
+    std::string sparql;
     char ch;
     if (infile.is_open()) {
         while (buf && infile.get(ch)) {
@@ -35,8 +35,8 @@ int main(int argc, char** argv) {
     std::string query_file = argv[2];
 
     std::string sparql = readSPARQLFromFile(query_file);
-    sparql_query sparqlQuery(dbname);
-    sparql_parser parser(sparql);
+    SparqlQuery sparqlQuery(dbname);
+    SparqlParser parser(sparql);
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
     std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
 
     if (result.empty()) {
-        std::cout << "0 result" << std::endl;
+        std::cout << "[empty result]" << std::endl;
     } else {
         std::cout << result.size() << " result(s)" << std::endl;
         auto variables = parser.getQueryVariables();
