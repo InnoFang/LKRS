@@ -40,6 +40,16 @@ void SparqlParser::catchVariables(const std::string &raw_variable) {
 }
 
 void SparqlParser::catchTriples(const std::string &raw_triple) {
+    uint64_t init = 1;
+    auto encode_var = [&](std::string& var) {
+        if (!var2id.count(var)) {
+            var2id[var] = init;
+            id2var[init] = var;
+            init <<= 1;
+        }
+        return var2id[var];
+    };
+
     std::regex sep("\\.\\s");
     std::sregex_token_iterator tokens(raw_triple.cbegin(), raw_triple.cend(), sep, -1);
     std::sregex_token_iterator end;
@@ -48,7 +58,15 @@ void SparqlParser::catchTriples(const std::string &raw_triple) {
     for(; tokens != end; ++ tokens) {
         std::istringstream iss(*tokens);
         iss >> s >> p >> o;
-        triples_.emplace_back(s, p, o);
+        gPSO::triplet triplet{s, p, o};
+        triples_.emplace_back(triplet);
+
+        /* encode var into id*/
+        uint64_t code = 0;
+        if (s[0] == '?') code |= encode_var(s);
+        if (p[0] == '?') code |= encode_var(p);
+        if (o[0] == '?') code |= encode_var(o);
+        triple2queryId[triplet] = code;
     }
 }
 
@@ -63,3 +81,9 @@ std::vector<gPSO::triplet> SparqlParser::getQueryTriples() {
 bool SparqlParser::isDistinct() {
     return distinct_;
 }
+
+uint64_t SparqlParser::mapTripletIdBy(gPSO::triplet &triplet_) {
+    return triple2queryId[triplet_];
+}
+
+
