@@ -4,24 +4,51 @@
 
 #include "query/sparql_query.hpp"
 #include <iostream>
+#include <chrono>
 
-sparql_query::sparql_query(std::string& dbname): psoDB_(dbname) {
+SparqlQuery::SparqlQuery(std::string& dbname): psoDB_(dbname) {
     psoDB_.load();
 }
 
-sparql_query::~sparql_query() = default;
+SparqlQuery::~SparqlQuery() = default;
 
-vec_map_str_int sparql_query::query(sparql_parser& parser) {
+vec_map_str_int SparqlQuery::query(SparqlParser& parser) {
     this->parser = parser;
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    // preprocessing
     auto intermediate_results =
-            preprocessing(parser.getQueryVariables(), parser.getQueryTriples());
+            preprocessing(parser.getQueryTriples());
+
+    auto stop_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
+    std::cout << "preprocessing used time: " << used_time.count() << " ms." << std::endl;
+
+
+    start_time = std::chrono::high_resolution_clock::now();
+
+    // generateQueryPlan
     QueryPlan queryPlan = generateQueryPlan(intermediate_results);
+
+    stop_time = std::chrono::high_resolution_clock::now();
+    used_time = stop_time - start_time;
+    std::cout << "generateQueryPlan used time: " << used_time.count() << " ms." << std::endl;
+
+
+    start_time = std::chrono::high_resolution_clock::now();
+
+    // execute
     auto result = execute(queryPlan);
+
+    stop_time = std::chrono::high_resolution_clock::now();
+    used_time = stop_time - start_time;
+    std::cout << "execute used time: " << used_time.count() << " ms." << std::endl;
+
     return result;
 }
 
-QueryQueue
-sparql_query::preprocessing(const std::vector<std::string> &variables, const std::vector<gPSO::triplet> &triplets) {
+QueryQueue SparqlQuery::preprocessing(const std::vector<gPSO::triplet> &triplets) {
     QueryQueue ret(query_queue_cmp);
 
     for (const auto &triplet : triplets) {
@@ -54,7 +81,7 @@ sparql_query::preprocessing(const std::vector<std::string> &variables, const std
     return ret;
 }
 
-QueryPlan sparql_query::generateQueryPlan(QueryQueue& query_queue) {
+QueryPlan SparqlQuery::generateQueryPlan(QueryQueue& query_queue) {
 
     QueryPlan queryPlan { query_queue.top() }; query_queue.pop();
     // temp_queue store the vec_map_str_int that cannot push into queryPlan immediately.
@@ -91,19 +118,17 @@ QueryPlan sparql_query::generateQueryPlan(QueryQueue& query_queue) {
     return queryPlan;
 }
 
-vec_map_str_int sparql_query::execute(QueryPlan &queryPlan) {
+vec_map_str_int SparqlQuery::execute(QueryPlan &queryPlan) {
     auto join_query = [&](vec_map_str_int & mat1, vec_map_str_int& mat2) {
         vec_map_str_int ret;
 
         if (mat1.empty() || mat2.empty()) return ret;
 
+        // find join variables between mat1 and mat2
         std::vector<std::string> join_variables;
-
-        for (const auto &mat1_item : mat1[0]) {
-            for (const auto &mat2_item : mat2[0]) {
-                if (mat1_item.first == mat2_item.first) {
-                    join_variables.emplace_back(mat1_item.first);
-                }
+        for (const auto &mat2_item : mat2[0]) {
+            if (mat1[0].count(mat2_item.first)) {
+                join_variables.emplace_back(mat2_item.first);
             }
         }
 
@@ -125,37 +150,22 @@ vec_map_str_int sparql_query::execute(QueryPlan &queryPlan) {
         return ret;
     };
 
-    // when the size of queryPlan larger than 1, that's mean contain join query
-    while (queryPlan.size() > 1) {
-        vec_map_str_int mat1 = queryPlan.front(); queryPlan.pop_front();
-        vec_map_str_int mat2 = queryPlan.front(); queryPlan.pop_front();
-        vec_map_str_int temp = join_query(mat1, mat2);
-        if (temp.empty()) return {};
-        queryPlan.emplace_front(temp);
-    }
+    vec_map_str_int result = queryPlan.front(); queryPlan.pop_front();
 
-    // if the size of queryPlan is 1, that's mean the last result
-    vec_map_str_int last = queryPlan.front();
-
-    vec_map_str_int result;
-    result.reserve(last.size());
-    for (map_str_int &item: last) {
-        map_str_int result_item;
-        for (std::string &var : parser.getQueryVariables()) {
-            result_item[var] = item[var];
-        }
-        result.emplace_back(result_item);
+    while (!queryPlan.empty() && !result.empty()) {
+        vec_map_str_int temp = queryPlan.front(); queryPlan.pop_front();
+        result = join_query(result, temp);
     }
 
     if (parser.isDistinct()) {
-        vec_map_str_int::iterator pos = std::unique(result.begin(), result.end());
+        auto pos = std::unique(result.begin(), result.end());
         result.erase(pos, result.end());
     }
 
     return result;
 }
 
-std::vector<std::unordered_map<std::string, std::string>> sparql_query::mapQueryResult(vec_map_str_int &query_result) {
+std::vector<std::unordered_map<std::string, std::string>> SparqlQuery::mapQueryResult(vec_map_str_int &query_result) {
     std::vector<std::unordered_map<std::string, std::string>> ret;
     ret.reserve(query_result.size());
     for (const map_str_int &row : query_result) {

@@ -24,12 +24,12 @@ auto query_queue_cmp = [](vec_map_str_int& v1, vec_map_str_int& v2) { return v1.
 using QueryQueue = std::priority_queue<vec_map_str_int, std::vector<vec_map_str_int>, decltype(query_queue_cmp)>;
 using QueryPlan = std::deque<vec_map_str_int>;
 
-class sparql_query {
+class SparqlQuery {
 public:
-    explicit sparql_query(std::string& dbname);
-    ~sparql_query();
-    vec_map_str_int query(sparql_parser& parser);
-    QueryQueue preprocessing(const std::vector<std::string>& variables, const std::vector<gPSO::triplet>& triplets);
+    explicit SparqlQuery(std::string& dbname);
+    ~SparqlQuery();
+    vec_map_str_int query(SparqlParser& parser);
+    QueryQueue preprocessing(const std::vector<gPSO::triplet>& triplets);
     QueryPlan generateQueryPlan(QueryQueue& query_queue);
     vec_map_str_int execute(QueryPlan& queryPlan);
     std::vector<std::unordered_map<std::string, std::string>> mapQueryResult(vec_map_str_int& query_result);
@@ -37,7 +37,7 @@ public:
 private:
     std::string sparql_;
     std::string dbname_;
-    sparql_parser parser;
+    SparqlParser parser;
     Database psoDB_;
 };
 
