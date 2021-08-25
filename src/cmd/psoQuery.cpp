@@ -38,13 +38,7 @@ int main(int argc, char** argv) {
     SparqlQuery sparqlQuery(dbname);
     SparqlParser parser(sparql);
 
-    auto start_time = std::chrono::high_resolution_clock::now();
-
     auto result = sparqlQuery.query(parser);
-
-    auto stop_time = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
 
     if (result.empty()) {
         std::cout << "[empty result]" << std::endl;
@@ -61,7 +55,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    std::cout << "Used time: " << used_time.count() << " ms." << std::endl;
+    std::cout << "Used time: " << sparqlQuery.UsedTime << " ms." << std::endl;
 
     return 0;
 }
