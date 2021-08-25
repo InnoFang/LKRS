@@ -35,7 +35,7 @@ public:
     int calcHexLength(size_t length);
     void generatePSO();
     std::tuple<uint64_t, uint64_t> getVarPSOAndMask(const gPSO::triplet& triplet);
-    std::vector<std::pair<uint64_t, uint64_t>> getQualifiedSOList(uint64_t query_pso, uint64_t query_pso_mask);
+    std::vector<std::unordered_map<std::string, uint64_t>> getQualifiedSOList(const gPSO::triplet& triplet_);
     std::string getSOByID(uint64_t id);
 private:
     fs::path db_path_;

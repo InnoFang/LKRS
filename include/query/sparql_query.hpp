@@ -5,6 +5,7 @@
 #ifndef RETRIEVE_SYSTEM_SPARQL_QUERY_H
 #define RETRIEVE_SYSTEM_SPARQL_QUERY_H
 
+#include <future>
 #include <deque>
 #include <queue>
 #include <string>
@@ -20,15 +21,17 @@
 using map_str_int = std::unordered_map<std::string, uint64_t>;
 using vec_map_str_int = std::vector<std::unordered_map<std::string, uint64_t>>;
 
-using QueryQueue = std::deque<vec_map_str_int>;
+using QueryPlan = std::vector<std::pair<gPSO::triplet, size_t>>;
+using QueryQueue = std::deque<gPSO::triplet>;
 
 class SparqlQuery {
 public:
     explicit SparqlQuery(std::string& dbname);
     ~SparqlQuery();
     vec_map_str_int query(SparqlParser& parser);
-    QueryQueue generateQueryQueue(const std::vector<gPSO::triplet>& triplets);
-    std::vector<gPSO::triplet> rearrangeQueryPlan(std::vector<std::pair<gPSO::triplet, size_t>>& triplet_size_list);
+    QueryPlan preprocessing_async(const std::vector<gPSO::triplet>& triplets);
+    QueryPlan preprocessing(const std::vector<gPSO::triplet>& triplets);
+    QueryQueue rearrangeQueryPlan(QueryPlan& init_query_plan);
     vec_map_str_int execute(QueryQueue& query_queue);
     std::vector<std::unordered_map<std::string, std::string>> mapQueryResult(vec_map_str_int& query_result);
 
@@ -37,6 +40,7 @@ private:
     std::string dbname_;
     SparqlParser parser;
     Database psoDB_;
+    std::unordered_map<gPSO::triplet, vec_map_str_int, gPSO::triplet_hash> subquery_results_;
 };
 
 #endif //RETRIEVE_SYSTEM_SPARQL_QUERY_H

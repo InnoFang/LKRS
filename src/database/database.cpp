@@ -298,25 +298,43 @@ std::tuple<uint64_t, uint64_t> Database::getVarPSOAndMask(const gPSO::triplet& t
     return {pso, pso_mask};
 }
 
-std::vector<std::pair<uint64_t, uint64_t>> Database::getQualifiedSOList(uint64_t query_pso, uint64_t query_pso_mask) {
+std::vector<std::unordered_map<std::string, uint64_t>> Database::getQualifiedSOList(const gPSO::triplet& triplet_) {
+    std::string s, p, o;
+    std::tie(s, p, o) = triplet_;
+
+    uint64_t query_pso, query_pso_mask;
+    std::tie(query_pso, query_pso_mask) = getVarPSOAndMask(triplet_);
+
     if ((query_pso & p_mask_) == 0) {
         std::cout << "without predicate" << std::endl;
         return {};
     }
-    uint64_t p, s, o;
-    std::tie(p, s, o) = gPSO::decodePSO(query_pso, query_pso_mask, so_hex_len_);
 
-    int p_size = p_indices_[p];
-    std::vector<std::pair<uint64_t, uint64_t>> qualified_so;
+    // get subject/predicate/object label respectively from triplet
+    uint64_t pid, sid, oid;
+    std::tie(pid, sid, oid) = gPSO::decodePSO(query_pso, query_pso_mask, so_hex_len_);
+
+    int p_size = p_indices_[pid];
+    std::vector<std::unordered_map<std::string, uint64_t>> qualified_so;
     qualified_so.reserve(p_size);
 
-    int start = p_range_[p], end = p_range_[p + 1];
+    int start = p_range_[pid], end = p_range_[pid + 1];
     std::for_each(pso_.begin() + start, pso_.begin() + end, [&](uint64_t pso) {
         if ((pso & query_pso_mask) == query_pso) {
             uint64_t match_pso = pso & (~query_pso_mask);
-            uint64_t pid, sid, oid;
+
             std::tie(pid, sid, oid) = gPSO::decodePSO(match_pso, so_hex_len_);
-            qualified_so.emplace_back(sid, oid);
+
+            std::unordered_map<std::string, uint64_t> item;
+
+            if (sid != 0) {
+                item[s] = sid;
+            }
+            if (oid != 0) {
+                item[o] = oid;
+            }
+
+            qualified_so.emplace_back( std::move(item) );
         }
     });
     return qualified_so;

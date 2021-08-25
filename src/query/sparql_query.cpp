@@ -16,17 +16,30 @@ vec_map_str_int SparqlQuery::query(SparqlParser& parser) {
 
     this->parser = parser;
 
-    // generateQueryQueue
+    // preprocessing_async
     auto start_time = std::chrono::high_resolution_clock::now();
-    auto queryPlan = generateQueryQueue(parser.getQueryTriples());
+
+    QueryPlan init_query_plan = preprocessing(parser.getQueryTriples());
+
     auto stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
-    std::cout << "generateQueryQueue used time: " << used_time.count() << " ms." << std::endl;
+    std::cout << "preprocessing_async used time: " << used_time.count() << " ms." << std::endl;
+
+    // rearranging query plan and generate query queue
+    start_time = std::chrono::high_resolution_clock::now();
+
+    QueryQueue query_queue = rearrangeQueryPlan(init_query_plan);
+
+    stop_time = std::chrono::high_resolution_clock::now();
+    used_time = stop_time - start_time;
+    std::cout << "rearrangeQueryPlan used time: " << used_time.count() << " ms." << std::endl;
 
 
     // execute
     start_time = std::chrono::high_resolution_clock::now();
-    auto result = execute(queryPlan);
+
+    auto result = execute(query_queue);
+
     stop_time = std::chrono::high_resolution_clock::now();
     used_time = stop_time - start_time;
     std::cout << "execute used time: " << used_time.count() << " ms." << std::endl;
@@ -34,73 +47,83 @@ vec_map_str_int SparqlQuery::query(SparqlParser& parser) {
     return result;
 }
 
-QueryQueue SparqlQuery::generateQueryQueue(const std::vector<gPSO::triplet> &triplets) {
+QueryPlan SparqlQuery::preprocessing_async(const std::vector<gPSO::triplet> &triplets) {
+    subquery_results_.clear();
+    subquery_results_.reserve(triplets.size());
 
-    std::unordered_map<gPSO::triplet, vec_map_str_int, gPSO::triplet_hash> single_query_match_map;
+//    // record the size of each triplets, use for rearranging query plan
+    QueryPlan init_query_plan;
+    init_query_plan.reserve(triplets.size());
 
-    // record the size of each triplets, use for rearranging query plan
-    std::vector<std::pair<gPSO::triplet, size_t>> triplet_size_list;
+    auto handleSubquery = [&](Database& db, const gPSO::triplet& triplet_) {
+        return db.getQualifiedSOList(triplet_);
+    };
 
-    for (const auto &triplet : triplets) {
-        // get subject/predicate/object label respectively from triplet
-        std::string s, p, o;
-        std::tie(s, p, o) = triplet;
+    std::vector<std::shared_future<vec_map_str_int>> query_result;
 
-        uint64_t pso, mask;
-        std::tie(pso, mask) = psoDB_.getVarPSOAndMask(triplet);
-
-        vec_map_str_int single_query_match;
-
-        std::vector<std::pair<uint64_t, uint64_t>> qualified_so_list = psoDB_.getQualifiedSOList(pso, mask);
-        // append <triplet, size> pair into triplet_size_list
-        triplet_size_list.emplace_back(triplet, qualified_so_list.size());
-
-        for (const auto &qualified_so : qualified_so_list) {
-            uint64_t sid, oid;
-            std::tie(sid, oid) = qualified_so;
-
-            map_str_int item;
-            if (sid != 0) {
-                item[s] = sid;
-            }
-            if (oid != 0) {
-                item[o] = oid;
-            }
-
-            single_query_match.emplace_back( std::move(item) );
-        }
-        single_query_match_map.emplace(triplet, std::move(single_query_match));
+    query_result.reserve(triplets.size());
+    for (auto& t : triplets) {
+        query_result.emplace_back(
+                std::async(std::launch::async, handleSubquery, std::ref(psoDB_), std::ref(t)) );
     }
 
-    std::vector<gPSO::triplet> query_plan = rearrangeQueryPlan(triplet_size_list);
+    for (int i = 0; i < query_result.size(); ++ i) {
+        auto start_time = std::chrono::high_resolution_clock::now();
 
-    QueryQueue ret;
-    for (const auto &item : query_plan) {
-        ret.emplace_back( single_query_match_map[item] );
+        vec_map_str_int sub_result = query_result[i].get();
+
+        auto stop_time = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
+
+        init_query_plan.emplace_back(triplets[i], sub_result.size());
+        subquery_results_.emplace(triplets[i], std::move(sub_result));
+        std::cout << i << " handle subquery used time: " << used_time.count() << " ms." << std::endl;
     }
-    return ret;
+
+    return init_query_plan;
 }
 
-std::vector<gPSO::triplet> SparqlQuery::rearrangeQueryPlan(std::vector<std::pair<gPSO::triplet, size_t>>& triplet_size_list) {
-    sort(triplet_size_list.begin(), triplet_size_list.end(),
+QueryPlan SparqlQuery::preprocessing(const std::vector<gPSO::triplet> &triplets) {
+
+    subquery_results_.reserve(triplets.size());
+
+    // record the size of each triplets, use for rearranging query plan
+    QueryPlan init_query_plan;
+    init_query_plan.reserve(triplets.size());
+
+    for (const auto &triplet : triplets) {
+
+        vec_map_str_int subquery_result = psoDB_.getQualifiedSOList(triplet);
+        // append <triplet, size> pair into init_query_plan
+        init_query_plan.emplace_back(triplet, subquery_result.size());
+
+        subquery_results_.emplace(triplet, std::move(subquery_result));
+    }
+
+    return init_query_plan;
+}
+
+QueryQueue SparqlQuery::rearrangeQueryPlan(QueryPlan& init_query_plan) {
+    sort(init_query_plan.begin(), init_query_plan.end(),
          [&](std::pair<gPSO::triplet, size_t>& a, std::pair<gPSO::triplet, size_t>& b) {
              return a.second < b.second;
          });
 
     uint64_t node_set = 0;
-    std::vector<gPSO::triplet> query_plan { triplet_size_list.front().first };
-    node_set |= parser.mapTripletIdBy(triplet_size_list.front().first);
-    triplet_size_list.erase(triplet_size_list.begin());
+    QueryQueue query_queue { init_query_plan.front().first };
 
-    while (!triplet_size_list.empty()) {
-        auto curr = triplet_size_list.begin();
+    node_set |= parser.mapTripletIdBy(init_query_plan.front().first);
+    init_query_plan.erase(init_query_plan.begin());
+
+    while (!init_query_plan.empty()) {
+        auto curr = init_query_plan.begin();
         bool match = false;
-        while (curr != triplet_size_list.end()) {
+        while (curr != init_query_plan.end()) {
             match = ((node_set & parser.mapTripletIdBy(curr->first)) != 0);
             if (match) {
                 node_set |= parser.mapTripletIdBy(curr->first);
-                query_plan.push_back(curr->first);
-                triplet_size_list.erase(curr);
+                query_queue.push_back(curr->first);
+                init_query_plan.erase(curr);
                 break;
             } else {
                 curr ++;
@@ -108,11 +131,11 @@ std::vector<gPSO::triplet> SparqlQuery::rearrangeQueryPlan(std::vector<std::pair
         }
     }
 
-    return query_plan;
+    return query_queue;
 }
 
 vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
-    auto join_query = [&](vec_map_str_int & mat1, vec_map_str_int& mat2) {
+    auto join_query = [&](vec_map_str_int& mat1, vec_map_str_int& mat2) {
         vec_map_str_int ret;
 
         if (mat1.empty() || mat2.empty()) return ret;
@@ -143,10 +166,12 @@ vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
         return ret;
     };
 
-    vec_map_str_int result = query_queue.front(); query_queue.pop_front();
+    gPSO::triplet front_triplet = query_queue.front(); query_queue.pop_front();
+    vec_map_str_int result = subquery_results_[front_triplet];
 
     while (!query_queue.empty() && !result.empty()) {
-        vec_map_str_int temp = query_queue.front(); query_queue.pop_front();
+        gPSO::triplet temp_triplet = query_queue.front(); query_queue.pop_front();
+        vec_map_str_int temp = subquery_results_[temp_triplet];
         result = join_query(result, temp);
     }
 
