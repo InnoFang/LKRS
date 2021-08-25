@@ -6,7 +6,7 @@
 #include <iostream>
 #include <chrono>
 
-SparqlQuery::SparqlQuery(std::string& dbname): psoDB_(dbname) {
+SparqlQuery::SparqlQuery(std::string& dbname): psoDB_(dbname), UsedTime(0) {
     psoDB_.load();
 }
 
@@ -24,6 +24,8 @@ vec_map_str_int SparqlQuery::query(SparqlParser& parser) {
     auto stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
     std::cout << "preprocessing_async used time: " << used_time.count() << " ms." << std::endl;
+    UsedTime += used_time.count();
+
 
     // rearranging query plan and generate query queue
     start_time = std::chrono::high_resolution_clock::now();
@@ -33,6 +35,7 @@ vec_map_str_int SparqlQuery::query(SparqlParser& parser) {
     stop_time = std::chrono::high_resolution_clock::now();
     used_time = stop_time - start_time;
     std::cout << "rearrangeQueryPlan used time: " << used_time.count() << " ms." << std::endl;
+    UsedTime += used_time.count();
 
 
     // execute
@@ -43,6 +46,7 @@ vec_map_str_int SparqlQuery::query(SparqlParser& parser) {
     stop_time = std::chrono::high_resolution_clock::now();
     used_time = stop_time - start_time;
     std::cout << "execute used time: " << used_time.count() << " ms." << std::endl;
+    UsedTime += used_time.count();
 
     return result;
 }

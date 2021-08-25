@@ -26,6 +26,7 @@ using QueryQueue = std::deque<gPSO::triplet>;
 
 class SparqlQuery {
 public:
+    double UsedTime;
     explicit SparqlQuery(std::string& dbname);
     ~SparqlQuery();
     vec_map_str_int query(SparqlParser& parser);
