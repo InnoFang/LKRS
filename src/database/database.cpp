@@ -35,9 +35,16 @@ void Database::create(const std::string& datafile) {
     std::ifstream::sync_with_stdio(false);
     infile.tie(nullptr);
     if (infile.is_open()) {
-        std::string s, p, o, dot, line;
-        while (infile >> s >> p >> o >> dot) {
+//        std::string s, p, o, dot, line;
+//        while (infile >> s >> p >> o >> dot) {
 //            Triplet triple(s, p, o);
+        while (infile.peek() != EOF) {
+            std::string s, p, o;
+            catchRdfElement(infile, s);
+            catchRdfElement(infile, p);
+            catchRdfElement(infile, o);
+            if (s.empty() || p.empty() || o.empty()) continue;
+
             triples_.emplace_back( s, p, o );
 
             if (!p2id_.count(p)) {
@@ -256,7 +263,9 @@ bool Database::load() {
         for (size_t i = 0; i < so_size_; ++ i) {
             uint64_t index;
             std::string suobject;
-            soidDataIn >> index >> suobject;
+            soidDataIn >> index;
+            soidDataIn.ignore();
+            std::getline(soidDataIn, suobject);
             id2so_[index] = suobject;
             so2id_[suobject] = index;
         }
@@ -342,4 +351,33 @@ std::vector<std::unordered_map<std::string, uint64_t>> Database::getQualifiedSOL
 
 std::string Database::getSOByID(uint64_t id) {
     return id2so_[id];
+}
+
+void Database::catchRdfElement(std::istream &in, std::string &s) {
+    int c;
+    s.reserve(256);
+    std::stack<char> stk;
+    while ((c = in.get()) != EOF) {
+        if (c == '<') {
+            s += '<';
+            stk.emplace(c);
+        }
+        else if (c == '>' && stk.top() == '<') {
+            stk.pop();
+            s += '>';
+            return;
+        }
+        else if (c == '\"') {
+            if (!stk.empty() && stk.top() == '"') {
+                stk.pop();
+                s += '"';
+                return;
+            } else {
+                stk.emplace(c);
+                s += '"';
+            }
+        } else if (!stk.empty()) {
+            s += char(c);
+        }
+    }
 }

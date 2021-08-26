@@ -6,6 +6,7 @@
 #define RETRIEVE_SYSTEM_DATABASE_H
 
 #include <list>
+#include <stack>
 #include <mutex>
 #include <regex>
 #include <cmath>
@@ -37,6 +38,7 @@ public:
     std::tuple<uint64_t, uint64_t> getVarPSOAndMask(const gPSO::triplet& triplet);
     std::vector<std::unordered_map<std::string, uint64_t>> getQualifiedSOList(const gPSO::triplet& triplet_);
     std::string getSOByID(uint64_t id);
+    void catchRdfElement(std::istream& in, std::string& s);
 private:
     fs::path db_path_;
     fs::path info_path_;
