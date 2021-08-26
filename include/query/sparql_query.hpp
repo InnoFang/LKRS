@@ -33,7 +33,7 @@ public:
     QueryPlan preprocessing_async(const std::vector<gPSO::triplet>& triplets);
     QueryPlan preprocessing(const std::vector<gPSO::triplet>& triplets);
     QueryQueue rearrangeQueryPlan(QueryPlan& init_query_plan);
-    vec_map_str_int execute(QueryQueue& query_queue);
+    vec_map_str_int execute(QueryQueue& intermediate_result);
     std::vector<std::unordered_map<std::string, std::string>> mapQueryResult(vec_map_str_int& query_result);
 
 private:

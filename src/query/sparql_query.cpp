@@ -7,7 +7,17 @@
 #include <chrono>
 
 SparqlQuery::SparqlQuery(std::string& dbname): psoDB_(dbname), UsedTime(0) {
+    std::cout << "load db: " << dbname << std::endl;
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+
     psoDB_.load();
+
+    auto stop_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
+
+    std::cout << "db load done. ";
+    std::cout << "Used time: " << used_time.count() << " ms. \n" << std::endl;
 }
 
 SparqlQuery::~SparqlQuery() = default;
@@ -23,7 +33,7 @@ vec_map_str_int SparqlQuery::query(SparqlParser& parser) {
 
     auto stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
-    std::cout << "preprocessing_async used time: " << used_time.count() << " ms." << std::endl;
+    std::cout << "preprocessing used time: " << used_time.count() << " ms." << std::endl;
     UsedTime += used_time.count();
 
 
@@ -139,31 +149,32 @@ QueryQueue SparqlQuery::rearrangeQueryPlan(QueryPlan& init_query_plan) {
 }
 
 vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
-    auto join_query = [&](vec_map_str_int& mat1, vec_map_str_int& mat2) {
+    auto join_query = [&](vec_map_str_int& intermediate_result, vec_map_str_int& subquery_result) {
         vec_map_str_int ret;
+        ret.reserve(std::max(intermediate_result.size(), subquery_result.size()));
 
-        if (mat1.empty() || mat2.empty()) return ret;
+        if (intermediate_result.empty() || subquery_result.empty()) return ret;
 
-        // find join variables between mat1 and mat2
+        // find join variables between intermediate_result and subquery_result
         std::vector<std::string> join_variables;
-        for (const auto &mat2_item : mat2[0]) {
-            if (mat1[0].count(mat2_item.first)) {
+        for (const auto &mat2_item : subquery_result[0]) {
+            if (intermediate_result[0].count(mat2_item.first)) {
                 join_variables.emplace_back(mat2_item.first);
             }
         }
 
-        for (auto& mat1_map: mat1) {
-            for (auto& mat2_map: mat2) {
+        for (auto& intermediate: intermediate_result) {
+            for (auto& subquery: subquery_result) {
                 int match = 0;
                 for (const auto &join_variable: join_variables) {
-                    if (mat1_map[join_variable] == mat2_map[join_variable]) {
+                    if (intermediate[join_variable] == subquery[join_variable]) {
                         match ++;
                     } else break;
                 }
                 if (match == join_variables.size()) {
-                    map_str_int tmp(mat1_map);
-                    tmp.insert(mat2_map.begin(), mat2_map.end());
-                    ret.emplace_back(tmp);
+                    map_str_int temp(intermediate);
+                    temp.insert(subquery.begin(), subquery.end());
+                    ret.emplace_back(temp);
                 }
             }
         }
