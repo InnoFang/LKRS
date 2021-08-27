@@ -181,7 +181,7 @@ bool Database::store() {
         psoDataOut.tie(nullptr);
         if (psoDataOut.is_open()) {
             for (auto& pso : pso_list) {
-                std::string pso_str = std::to_string(pso);
+                std::string pso_str = std::to_string(pso) + "\n";
                 psoDataOut.write(pso_str.c_str(), pso_str.size());
             }
             psoDataOut.close();
@@ -232,7 +232,6 @@ bool Database::load() {
     p2id_.reserve(p_size_);
     std::ifstream pidDataIn(pid_path_.string(), std::ifstream::binary);
     if (pidDataIn.is_open()) {
-
         for (size_t i = 0; i < p_size_; ++ i) {
             uint64_t index;
             std::string predicate;
