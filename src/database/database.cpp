@@ -14,7 +14,7 @@ Database::Database(std::string& dbname) : dbname_(dbname) {
     info_path_ = fs::path(db_path_).append("info");
     pid_path_ = fs::path(db_path_).append("pid");
     soid_path_ = fs::path(db_path_).append("soid");
-    pso_path_ = fs::path(db_path_).append("spo");
+    pso_path_ = fs::path(db_path_).append("pso");
 
     /* initialize */
     triple_size_ = 0;
@@ -35,15 +35,12 @@ void Database::create(const std::string& datafile) {
     std::ifstream::sync_with_stdio(false);
     infile.tie(nullptr);
     if (infile.is_open()) {
-//        std::string s, p, o, dot, line;
-//        while (infile >> s >> p >> o >> dot) {
-//            Triplet triple(s, p, o);
-        while (infile.peek() != EOF) {
-            std::string s, p, o;
-            catchRdfElement(infile, s);
-            catchRdfElement(infile, p);
-            catchRdfElement(infile, o);
-            if (s.empty() || p.empty() || o.empty()) continue;
+        std::string s, p, o;
+        while (infile >> s >> p) {
+            infile.ignore();
+            std::getline(infile, o);
+            for (o.pop_back(); o.back() == ' ' || o.back() == '.'; o.pop_back());
+
 
             triples_.emplace_back( s, p, o );
 
@@ -116,12 +113,9 @@ void Database::generatePSO() {
 bool Database::store() {
     fs::ofstream::sync_with_stdio(false);
     fs::create_directories(db_path_);
-    std::mutex info_lock, pid_lock, soid_lock, pso_lock;
 
     // database file 1: info
     auto store_info = [&]() {
-        std::lock_guard<std::mutex> guard{info_lock};
-
         fs::ofstream infoDataOut(info_path_, std::ofstream::binary);
         infoDataOut.tie(nullptr);
         if (infoDataOut.is_open()) {
@@ -148,62 +142,58 @@ bool Database::store() {
     };
 
     // database file 2: pid
-    auto store_pid = [&]() {
-        std::lock_guard<std::mutex> guard{pid_lock};
+    auto pid_task = std::async(std::launch::async, [](fs::path& path, std::vector<std::string>& p_list) {
 
-        fs::ofstream pidDataOut(pid_path_, std::ofstream::binary);
+        fs::ofstream pidDataOut(path, fs::ofstream::binary);
         pidDataOut.tie(nullptr);
         if (pidDataOut.is_open()) {
-            for (size_t i = 1; i <= p_size_; ++ i) {
-                pidDataOut << i << "\t" << id2p_[i] << "\n";
+            for (size_t i = 1; i < p_list.size(); ++ i) {
+//                pidDataOut << i << "\t" << p_list[i] << "\n";
+                std::string id_p = std::to_string(i) + "\t" + p_list[i] + "\n";
+                pidDataOut.write(id_p.c_str(), id_p.size());
             }
             pidDataOut.close();
-        } else {
-            std::cerr << "cannot create file: "<< pid_path_ << std::endl;
         }
-    };
+
+    }, std::ref(pid_path_), std::ref(id2p_));
 
     // database file 3: soid
     // soid su/object
-    auto store_soid = [&]() {
-        std::lock_guard<std::mutex> guard{soid_lock};
+    auto soid_task = std::async(std::launch::async, [](fs::path& path, std::vector<std::string>& so_list) {
 
-        fs::ofstream soidDataOut(soid_path_, std::ofstream::binary);
+        fs::ofstream soidDataOut(path, std::ofstream::binary);
         soidDataOut.tie(nullptr);
         if (soidDataOut.is_open()) {
-            for (size_t i = 1; i <= so_size_; ++ i) {
-                soidDataOut << i << "\t" << id2so_[i] << "\n";
+            for (size_t i = 1; i < so_list.size(); ++i) {
+//                soidDataOut << i << "\t" << so_list[i] << "\n";
+                std::string id_so = std::to_string(i) + "\t" + so_list[i] + "\n";
+                soidDataOut.write(id_so.c_str(), id_so.size());
+//                soidDataOut << i << std::endl;;
             }
             soidDataOut.close();
-        } else {
-            std::cerr << "cannot create file: "<< soid_path_ << std::endl;
         }
-    };
+
+    }, std::ref(soid_path_), std::ref(id2so_));
 
     // database file 4: pso
-    auto store_pso = [&]() {
-        std::lock_guard<std::mutex> guard{pso_lock};
-
-        fs::ofstream psoDataOut(pso_path_, std::ofstream::binary);
+        auto pso_task = std::async(std::launch::async, [&](fs::path& path, std::vector<uint64_t>& pso_list) {
+        fs::ofstream psoDataOut(path, std::ofstream::binary);
         psoDataOut.tie(nullptr);
         if (psoDataOut.is_open()) {
-            for (auto& pso : pso_) {
-                psoDataOut << pso << "\n";
+            for (auto& pso : pso_list) {
+                std::string pso_str = std::to_string(pso);
+                psoDataOut.write(pso_str.c_str(), pso_str.size());
             }
             psoDataOut.close();
         } else {
             std::cerr << "cannot create file: "<< pso_path_ << std::endl;
         }
-    };
+    }, std::ref(pso_path_), std::ref(pso_));
 
-    auto t_pso = std::thread(store_pso);
-    auto t_info = std::thread(store_info);
-    auto t_pid = std::thread(store_pid);
-    auto t_soid = std::thread(store_soid);
-    t_pso.join();
-    t_info.join();
-    t_pid.join();
-    t_soid.join();
+    store_info();
+    pid_task.wait();
+    soid_task.wait();
+    pso_task.wait();
 
     return true;
 }
@@ -236,11 +226,13 @@ bool Database::load() {
 
     // database file 2: pid
     // pid predicate
+    // id2p_.clear();
+    id2p_.resize(p_size_ + 1);
+    p2id_.clear();
+    p2id_.reserve(p_size_);
     std::ifstream pidDataIn(pid_path_.string(), std::ifstream::binary);
     if (pidDataIn.is_open()) {
-        id2p_.clear();
-        id2p_.resize(p_size_ + 1);
-        p2id_.clear();
+
         for (size_t i = 0; i < p_size_; ++ i) {
             uint64_t index;
             std::string predicate;
@@ -255,11 +247,13 @@ bool Database::load() {
     }
 
     // database file 3: soid
+    // id2so_.clear();
+    id2so_.resize(so_size_ + 1);
+    so2id_.clear();
+    so2id_.reserve(so_size_);
     std::ifstream soidDataIn(soid_path_.string(), std::ifstream::binary);
     if (soidDataIn.is_open()) {
-        id2so_.clear();
-        id2so_.resize(so_size_ + 1);
-        so2id_.clear();
+
         for (size_t i = 0; i < so_size_; ++ i) {
             uint64_t index;
             std::string suobject;
@@ -307,12 +301,12 @@ std::tuple<uint64_t, uint64_t> Database::getVarPSOAndMask(const gPSO::triplet& t
     return {pso, pso_mask};
 }
 
-std::vector<std::unordered_map<std::string, uint64_t>> Database::getQualifiedSOList(const gPSO::triplet& triplet_) {
+std::vector<std::unordered_map<std::string, uint64_t>> Database::getQualifiedSOList(const gPSO::triplet& query_triplet) {
     std::string s, p, o;
-    std::tie(s, p, o) = triplet_;
+    std::tie(s, p, o) = query_triplet;
 
     uint64_t query_pso, query_pso_mask;
-    std::tie(query_pso, query_pso_mask) = getVarPSOAndMask(triplet_);
+    std::tie(query_pso, query_pso_mask) = getVarPSOAndMask(query_triplet);
 
     if ((query_pso & p_mask_) == 0) {
         std::cout << "without predicate" << std::endl;
@@ -351,33 +345,4 @@ std::vector<std::unordered_map<std::string, uint64_t>> Database::getQualifiedSOL
 
 std::string Database::getSOByID(uint64_t id) {
     return id2so_[id];
-}
-
-void Database::catchRdfElement(std::istream &in, std::string &s) {
-    int c;
-    s.reserve(256);
-    std::stack<char> stk;
-    while ((c = in.get()) != EOF) {
-        if (c == '<') {
-            s += '<';
-            stk.emplace(c);
-        }
-        else if (c == '>' && stk.top() == '<') {
-            stk.pop();
-            s += '>';
-            return;
-        }
-        else if (c == '\"') {
-            if (!stk.empty() && stk.top() == '"') {
-                stk.pop();
-                s += '"';
-                return;
-            } else {
-                stk.emplace(c);
-                s += '"';
-            }
-        } else if (!stk.empty()) {
-            s += char(c);
-        }
-    }
 }
