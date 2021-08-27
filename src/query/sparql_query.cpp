@@ -29,7 +29,7 @@ vec_map_str_int SparqlQuery::query(SparqlParser& parser) {
     // preprocessing_async
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    QueryPlan init_query_plan = preprocessing(parser.getQueryTriples());
+    QueryPlan init_query_plan = preprocessing_async(parser.getQueryTriples());
 
     auto stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
@@ -69,16 +69,12 @@ QueryPlan SparqlQuery::preprocessing_async(const std::vector<gPSO::triplet> &tri
     QueryPlan init_query_plan;
     init_query_plan.reserve(triplets.size());
 
-    auto handleSubquery = [&](Database& db, const gPSO::triplet& triplet_) {
-        return db.getQualifiedSOList(triplet_);
-    };
-
-    std::vector<std::shared_future<vec_map_str_int>> query_result;
+    std::vector<std::future<vec_map_str_int>> query_result;
 
     query_result.reserve(triplets.size());
-    for (auto& t : triplets) {
-        query_result.emplace_back(
-                std::async(std::launch::async, handleSubquery, std::ref(psoDB_), std::ref(t)) );
+    for (auto& triplet : triplets) {
+        auto f = std::async(std::launch::async, &Database::getQualifiedSOList, &psoDB_, std::ref(triplet));
+        query_result.emplace_back( std::move(f) );
     }
 
     for (int i = 0; i < query_result.size(); ++ i) {
@@ -153,7 +149,10 @@ vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
         vec_map_str_int ret;
         ret.reserve(std::max(intermediate_result.size(), subquery_result.size()));
 
-        if (intermediate_result.empty() || subquery_result.empty()) return ret;
+        if (intermediate_result.empty() || subquery_result.empty()) {
+            intermediate_result = {};
+            return;
+        }
 
         // find join variables between intermediate_result and subquery_result
         std::vector<std::string> join_variables;
@@ -178,7 +177,8 @@ vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
                 }
             }
         }
-        return ret;
+        intermediate_result = std::move(ret);
+//        return ret;
     };
 
     gPSO::triplet front_triplet = query_queue.front(); query_queue.pop_front();
@@ -187,7 +187,8 @@ vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
     while (!query_queue.empty() && !result.empty()) {
         gPSO::triplet temp_triplet = query_queue.front(); query_queue.pop_front();
         vec_map_str_int temp = subquery_results_[temp_triplet];
-        result = join_query(result, temp);
+//        result = join_query(result, temp);
+        join_query(result, temp);
     }
 
     if (parser.isDistinct()) {
