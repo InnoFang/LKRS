@@ -20,11 +20,11 @@ SparqlQuery::SparqlQuery(std::string& dbname): psoDB_(dbname), UsedTime(0) {
     std::cout << "Used time: " << used_time.count() << " ms. \n" << std::endl;
 }
 
-SparqlQuery::~SparqlQuery() = default;
+SparqlQuery::~SparqlQuery() { };
 
-vec_map_str_int SparqlQuery::query(SparqlParser& parser) {
+vec_map_str_int SparqlQuery::query(SparqlParser& parser_) {
 
-    this->parser = parser;
+    parser = parser_;
 
     // preprocessing_async
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -145,7 +145,7 @@ QueryQueue SparqlQuery::rearrangeQueryPlan(QueryPlan& init_query_plan) {
 }
 
 vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
-    auto join_query = [&](vec_map_str_int& intermediate_result, vec_map_str_int& subquery_result) {
+    auto join_query = [](vec_map_str_int& intermediate_result, vec_map_str_int& subquery_result) {
         vec_map_str_int ret;
         ret.reserve(std::max(intermediate_result.size(), subquery_result.size()));
 
@@ -162,11 +162,11 @@ vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
             }
         }
 
-        for (auto& intermediate: intermediate_result) {
-            for (auto& subquery: subquery_result) {
+        for (const auto& intermediate: intermediate_result) {
+            for (const auto& subquery: subquery_result) {
                 int match = 0;
                 for (const auto &join_variable: join_variables) {
-                    if (intermediate[join_variable] == subquery[join_variable]) {
+                    if (intermediate.at(join_variable) == subquery.at(join_variable)) {
                         match ++;
                     } else break;
                 }
@@ -191,9 +191,55 @@ vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
         join_query(result, temp);
     }
 
-    if (parser.isDistinct()) {
-        auto pos = std::unique(result.begin(), result.end());
-        result.erase(pos, result.end());
+    return result;
+}
+
+set_map_str_int SparqlQuery::execute2(QueryQueue &query_queue) {
+    auto join_query = [&](set_map_str_int& intermediate_result, vec_map_str_int& subquery_result) {
+        set_map_str_int ret;
+        ret.reserve(std::max(intermediate_result.size(), subquery_result.size()));
+
+        if (intermediate_result.empty() || subquery_result.empty()) {
+            intermediate_result = {};
+            return;
+        }
+
+        // find join variables between intermediate_result and subquery_result
+        std::vector<std::string> join_variables;
+        for (const auto &mat2_item : subquery_result[0]) {
+            if (intermediate_result.begin()->count(mat2_item.first)) {
+                join_variables.emplace_back(mat2_item.first);
+            }
+        }
+
+        for (const auto& intermediate: intermediate_result) {
+            for (const auto& subquery: subquery_result) {
+                int match = 0;
+                for (const auto &join_variable: join_variables) {
+                    if (intermediate.at(join_variable) == subquery.at(join_variable)) {
+                        match ++;
+                    } else break;
+                }
+                if (match == join_variables.size()) {
+                    map_str_int temp(intermediate);
+                    temp.insert(subquery.begin(), subquery.end());
+                    ret.insert(temp);
+                }
+            }
+        }
+        intermediate_result = std::move(ret);
+//        return ret;
+    };
+
+    gPSO::triplet front_triplet = query_queue.front(); query_queue.pop_front();
+    auto front = subquery_results_[front_triplet];
+    set_map_str_int result(front.begin(), front.end());
+
+    while (!query_queue.empty() && !result.empty()) {
+        gPSO::triplet temp_triplet = query_queue.front(); query_queue.pop_front();
+        vec_map_str_int temp = subquery_results_[temp_triplet];
+//        result = join_query(result, temp);
+        join_query(result, temp);
     }
 
     return result;
@@ -211,4 +257,10 @@ std::vector<std::unordered_map<std::string, std::string>> SparqlQuery::mapQueryR
     }
     return ret;
 }
+
+std::string SparqlQuery::getSOById(const uint64_t& so_id) const {
+    return psoDB_.getSOByID(so_id);
+}
+
+
 

@@ -24,6 +24,19 @@ using vec_map_str_int = std::vector<std::unordered_map<std::string, uint64_t>>;
 using QueryPlan = std::vector<std::pair<gPSO::triplet, size_t>>;
 using QueryQueue = std::deque<gPSO::triplet>;
 
+struct ItemHash {
+    size_t operator()(const std::unordered_map<std::string, uint64_t>& m) const {
+        size_t ret = 0;
+        std::hash<std::string> key;
+        std::hash<uint64_t> val;
+        for (const auto &item : m) {
+            ret += key(item.first) + val(item.second);
+        }
+        return ret;
+    }
+};
+using set_map_str_int = std::unordered_set<std::unordered_map<std::string, uint64_t>, ItemHash>;
+
 class SparqlQuery {
 public:
     double UsedTime;
@@ -33,8 +46,10 @@ public:
     QueryPlan preprocessing_async(const std::vector<gPSO::triplet>& triplets);
     QueryPlan preprocessing(const std::vector<gPSO::triplet>& triplets);
     QueryQueue rearrangeQueryPlan(QueryPlan& init_query_plan);
-    vec_map_str_int execute(QueryQueue& intermediate_result);
+    vec_map_str_int execute(QueryQueue& query_queue);
+    set_map_str_int execute2(QueryQueue& query_queue);
     std::vector<std::unordered_map<std::string, std::string>> mapQueryResult(vec_map_str_int& query_result);
+    std::string getSOById(const uint64_t& so_id) const;
 
 private:
     std::string sparql_;
