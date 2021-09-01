@@ -342,6 +342,6 @@ std::vector<std::unordered_map<std::string, uint64_t>> Database::getQualifiedSOL
     return qualified_so;
 }
 
-std::string Database::getSOByID(uint64_t id) {
-    return id2so_[id];
+std::string Database::getSOByID(const uint64_t& so_id) const {
+    return id2so_[so_id];
 }

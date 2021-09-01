@@ -34,7 +34,7 @@ public:
     void generatePSO();
     std::tuple<uint64_t, uint64_t> getVarPSOAndMask(const gPSO::triplet& triplet);
     std::vector<std::unordered_map<std::string, uint64_t>> getQualifiedSOList(const gPSO::triplet& query_triplet);
-    std::string getSOByID(uint64_t id);
+    std::string getSOByID(const uint64_t& so_id) const;
 private:
     fs::path db_path_;
     fs::path info_path_;
