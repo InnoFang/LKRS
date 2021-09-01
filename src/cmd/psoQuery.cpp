@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <chrono>
+#include <set>
 #include "parser/sparql_parser.hpp"
 #include "database/database.hpp"
 #include "query/sparql_query.hpp"
@@ -40,22 +41,35 @@ int main(int argc, char** argv) {
 
     auto result = sparqlQuery.query(parser);
 
+    std::cout << "Used time: " << sparqlQuery.UsedTime << " ms." << std::endl;
+
+
     if (result.empty()) {
         std::cout << "[empty result]" << std::endl;
     } else {
-        std::cout << result.size() << " result(s)" << std::endl;
         auto variables = parser.getQueryVariables();
+
+        std::set<std::vector<uint64_t>> unique_result;
+//        for (auto &row : sparqlQuery.mapQueryResult(result)) {
+        for (auto &row : result) {
+            std::vector<uint64_t> item;
+            item.reserve(variables.size());
+            for (auto &variable: variables) {
+                item.emplace_back(row[variable]);
+            }
+            unique_result.insert( std::move(item) );
+        }
+
+        std::cout << unique_result.size() << " result(s)" << std::endl;
         std::copy(variables.begin(), variables.end(), std::ostream_iterator<std::string>(std::cout, "\t"));
         std::cout << std::endl;
-        for (auto &row : sparqlQuery.mapQueryResult(result)) {
-            for (auto &variable: variables) {
-                std::cout << row[variable] << "\t";
+        for (const std::vector<uint64_t> &row : unique_result) {
+            for (const uint64_t &so_id : row) {
+                std::cout << sparqlQuery.getSOById(so_id) << "\t";
             }
             std::cout << std::endl;
         }
     }
-
-    std::cout << "Used time: " << sparqlQuery.UsedTime << " ms." << std::endl;
 
     return 0;
 }
