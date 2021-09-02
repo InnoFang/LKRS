@@ -173,7 +173,7 @@ vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
                 if (match == join_variables.size()) {
                     map_str_int temp(intermediate);
                     temp.insert(subquery.begin(), subquery.end());
-                    ret.emplace_back(temp);
+                    ret.emplace_back(std::move(temp));
                 }
             }
         }
@@ -223,7 +223,7 @@ set_map_str_int SparqlQuery::execute2(QueryQueue &query_queue) {
                 if (match == join_variables.size()) {
                     map_str_int temp(intermediate);
                     temp.insert(subquery.begin(), subquery.end());
-                    ret.insert(temp);
+                    ret.insert(std::move(temp));
                 }
             }
         }
