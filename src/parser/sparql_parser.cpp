@@ -7,25 +7,19 @@
 
 SparqlParser::SparqlParser() {}
 
-SparqlParser::SparqlParser(const std::string& sparql) {
+SparqlParser::SparqlParser(const std::string& sparql): distinct_(false) {
     pattern_ = std::regex(R"(SELECT\s+(DISTINCT)?(.*)[\s]?WHERE\s*\{([^}]+)\})", std::regex::icase);
     parse(sparql);
 }
 
-SparqlParser::~SparqlParser() = default;
+SparqlParser::~SparqlParser() {};
 
 void SparqlParser::parse(const std::string &sparql) {
     std::smatch match;
     if (std::regex_search(sparql, match, pattern_)) {
-        if (match.size() > 2) {
-            distinct_ = true;
-            catchVariables(match.str(2));
-            catchTriples(match.str(3));
-        } else {
-            distinct_ = false;
-            catchVariables(match.str(1));
-            catchTriples(match.str(2));
-        }
+        distinct_ = !match.str(1).empty();
+        catchVariables(match.str(2));
+        catchTriples(match.str(3));
     } else {
         std::cerr << "[SPARQL parser] cannot parse it as SPARQL." << std::endl;
     }
