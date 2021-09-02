@@ -19,8 +19,5 @@ endif()
 include_directories(include)
 add_subdirectory(src)
 
-#enable_testing()
-#add_subdirectory(test)
-#
-#add_executable(testParser test/testParser.cpp)
-#target_link_libraries(testParser parser common)
+enable_testing()
+add_subdirectory(test)
