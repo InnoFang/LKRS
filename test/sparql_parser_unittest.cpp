@@ -17,23 +17,17 @@ TEST(SparqlParserTest, IndistinctSparql) {
     EXPECT_EQ(expect_variables, query_variables);
 }
 
+TEST(SparqlParserTest, DistinctSparql) {
+    std::string sparql = "select distinct ?x ?p where { ?x ?p <FullProfessor0>. }";
+    SparqlParser sparqlParser(sparql);
 
-//void test2() {
-//    std::string filename = R"(../data/p3.sql)";
-//    std::ifstream infile(filename, std::ios::in);
-//    std::ostringstream buf;
-//    char ch;
-//    if (infile.is_open()) {
-//        while (buf && infile.get(ch)) {
-//            buf.put(ch);
-//        }
-//        std::string sparql = buf.str();
-//        testSPARQLParser(sparql);
-//    } else {
-//        std::cout << "cannot open file: " << std::endl;
-//    }
-//    infile.close();
-//}
+    auto distinct = sparqlParser.isDistinct();
+    EXPECT_TRUE(distinct);
+
+    auto query_variables = sparqlParser.getQueryVariables();
+    auto expect_variables = std::vector<std::string> {"?x", "?p"};
+    EXPECT_EQ(expect_variables, query_variables);
+}
 
 int main(int argc, char** argv) {
     printf("Running main() from %s\n", __FILE__);
