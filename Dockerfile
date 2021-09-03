@@ -13,7 +13,7 @@ RUN sudo chmod 777 /retrieve-system/*
 
 WORKDIR /retrieve-system/build
 RUN conan install ..
-RUN sudo cmake .. -DCMAKE_BUILD_TYPE=Release && sudo cmake --build .
+RUN cmake .. -DCMAKE_BUILD_TYPE=Release && sudo cmake --build .
 
 WORKDIR /retrieve-system
-#RUN sudo ./bin/unitTest
+RUN ./bin/unitTest
