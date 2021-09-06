@@ -44,7 +44,7 @@ void SparqlParser::catchTriples(const std::string &raw_triple) {
         return var2id[var];
     };
 
-    std::regex sep("\\.\\s");
+    std::regex sep("\\.\\s*");
     std::sregex_token_iterator tokens(raw_triple.cbegin(), raw_triple.cend(), sep, -1);
     std::sregex_token_iterator end;
 
