@@ -22,7 +22,7 @@ namespace gPSO {
         pso >>= (so_hex_len << 2);
         uint64_t pid = pso;
 
-        return { pid, sid, oid };
+        return std::make_tuple( pid, sid, oid );
     };
 
     pso_triplet decodePSO(uint64_t pso, uint64_t so_mask, int so_hex_len) {
@@ -32,6 +32,6 @@ namespace gPSO {
         pso >>= (so_hex_len << 2);
         uint64_t pid = pso;
 
-        return { pid, sid, oid };
+        return std::make_tuple( pid, sid, oid );
     };
 }
