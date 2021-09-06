@@ -1,14 +1,14 @@
 FROM conanio/gcc9
 
-# setup conan
-USER root
-RUN conan profile new default --detect
-RUN conan profile update settings.compiler.libcxx=libstdc++11 default
-
 #RUN pip3 install conan
 #RUN conan user &&\
 #    conan profile new --detect default &&\
 #    conan profile update settings.compiler.libcxx=libstdc++11 default
+
+# setup conan
+USER root
+RUN conan profile new default --detect
+RUN conan profile update settings.compiler.libcxx=libstdc++11 default
 
 COPY data/lubm /retrieve-system/data/lubm
 COPY include /retrieve-system/include
