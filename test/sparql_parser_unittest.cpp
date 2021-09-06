@@ -2,15 +2,18 @@
 #include <fstream>
 #include <string>
 #include <spdlog/spdlog.h>
+#include <boost/filesystem.hpp>
 #include "parser/sparql_parser.hpp"
+
+namespace fs = boost::filesystem;
 
 namespace test {
 
     class SparqlParserTest : public testing::Test {
     protected:
-        std::string readSPARQLFromFile(const std::string& filepath) {
-            std::ifstream infile(filepath, std::ios::in);
-            std::ifstream::sync_with_stdio(false);
+        std::string readSPARQLFromFile(const fs::path& filepath) {
+            fs::ifstream infile(filepath, std::ios::in);
+            fs::ifstream::sync_with_stdio(false);
             std::ostringstream buf;
             std::string sparql;
             char ch;
@@ -52,18 +55,12 @@ namespace test {
     }
 
     TEST_F(SparqlParserTest, ParseSqlFromFile) {
-        std::string filename = R"(../data/lubm/lubm_q1.sql)";
-        std::string sparql = readSPARQLFromFile(filename);
-        std::string expect_sparql = "select distinct ?x where\n"
-                                    "{\n"
-                                    "?x\t<rdf:type>\t<ub:GraduateStudent>.\n"
-                                    "?y\t<rdf:type>\t<ub:University>.\n"
-                                    "?z\t<rdf:type>\t<ub:Department>.\n"
-                                    "?x\t<ub:memberOf>\t?z.\n"
-                                    "?z\t<ub:subOrganizationOf>\t?y.\n"
-                                    "?x\t<ub:undergraduateDegreeFrom>\t?y.\n"
-                                    "}\n";
-        EXPECT_EQ(expect_sparql, sparql);
+        fs::path project_dir = fs::path(std::string(__FILE__)).parent_path().parent_path();
+
+        fs::path sparql_file_path =
+                project_dir.append("data").append("lubm").append("lubm_q1.sql");
+
+        std::string sparql = readSPARQLFromFile(sparql_file_path);
         SparqlParser sparqlParser(sparql);
 
         auto distinct = sparqlParser.isDistinct();
