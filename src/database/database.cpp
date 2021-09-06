@@ -5,9 +5,7 @@
 #include "database/database.hpp"
 
 Database::Database(std::string& dbname) : dbname_(dbname) {
-    db_path_ = fs::current_path()
-            .parent_path()
-            .parent_path()
+    db_path_ = fs::path(std::string(__FILE__)).parent_path().parent_path().parent_path()
             .append("db")
             .append(dbname);
 
@@ -297,7 +295,7 @@ std::tuple<uint64_t, uint64_t> Database::getVarPSOAndMask(const gPSO::triplet& t
     uint64_t pso_mask = (predicate == 0 ? 0 : p_mask_)
                         | (subject == 0 ? 0 : s_mask_)
                         | (object == 0 ? 0 : o_mask_);
-    return {pso, pso_mask};
+    return std::make_tuple(pso, pso_mask);
 }
 
 std::vector<std::unordered_map<std::string, uint64_t>> Database::getQualifiedSOList(const gPSO::triplet& query_triplet) {
