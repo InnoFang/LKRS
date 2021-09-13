@@ -4,11 +4,9 @@
 
 #include "query/sparql_query.hpp"
 #include <iostream>
-#include <chrono>
 
-SparqlQuery::SparqlQuery(std::string& dbname): psoDB_(dbname), UsedTime(0) {
+SparqlQuery::SparqlQuery(const std::string& dbname): psoDB_(dbname), UsedTime(0) {
     std::cout << "load db: " << dbname << std::endl;
-
     auto start_time = std::chrono::high_resolution_clock::now();
 
     psoDB_.load();
@@ -20,10 +18,11 @@ SparqlQuery::SparqlQuery(std::string& dbname): psoDB_(dbname), UsedTime(0) {
     std::cout << "Used time: " << used_time.count() << " ms. \n" << std::endl;
 }
 
-SparqlQuery::~SparqlQuery() { };
+SparqlQuery::~SparqlQuery() {};
 
-vec_map_str_int SparqlQuery::query(SparqlParser& parser_) {
-
+ItemVector SparqlQuery::query(SparqlParser& parser_) {
+    subquery_results_.clear();
+    UsedTime = 0;
     parser = parser_;
 
     // preprocessing_async
@@ -69,7 +68,7 @@ QueryPlan SparqlQuery::preprocessing_async(const std::vector<gPSO::triplet> &tri
     QueryPlan init_query_plan;
     init_query_plan.reserve(triplets.size());
 
-    std::vector<std::future<vec_map_str_int>> query_result;
+    std::vector<std::future<ItemVector>> query_result;
 
     query_result.reserve(triplets.size());
     for (auto& triplet : triplets) {
@@ -80,7 +79,7 @@ QueryPlan SparqlQuery::preprocessing_async(const std::vector<gPSO::triplet> &tri
     for (int i = 0; i < query_result.size(); ++ i) {
         auto start_time = std::chrono::high_resolution_clock::now();
 
-        vec_map_str_int sub_result = query_result[i].get();
+        ItemVector sub_result = query_result[i].get();
 
         auto stop_time = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
@@ -103,7 +102,7 @@ QueryPlan SparqlQuery::preprocessing(const std::vector<gPSO::triplet> &triplets)
 
     for (const auto &triplet : triplets) {
 
-        vec_map_str_int subquery_result = psoDB_.getQualifiedSOList(triplet);
+        ItemVector subquery_result = psoDB_.getQualifiedSOList(triplet);
         // append <triplet, size> pair into init_query_plan
         init_query_plan.emplace_back(triplet, subquery_result.size());
 
@@ -144,9 +143,9 @@ QueryQueue SparqlQuery::rearrangeQueryPlan(QueryPlan& init_query_plan) {
     return query_queue;
 }
 
-vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
-    auto join_query = [](vec_map_str_int& intermediate_result, vec_map_str_int& subquery_result) {
-        vec_map_str_int ret;
+ItemVector SparqlQuery::execute(QueryQueue &query_queue) {
+    auto join_query = [](ItemVector& intermediate_result, ItemVector& subquery_result) {
+        ItemVector ret;
         ret.reserve(std::max(intermediate_result.size(), subquery_result.size()));
 
         if (intermediate_result.empty() || subquery_result.empty()) {
@@ -171,7 +170,7 @@ vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
                     } else break;
                 }
                 if (match == join_variables.size()) {
-                    map_str_int temp(intermediate);
+                    Item temp(intermediate);
                     temp.insert(subquery.begin(), subquery.end());
                     ret.emplace_back(std::move(temp));
                 }
@@ -182,11 +181,11 @@ vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
     };
 
     gPSO::triplet front_triplet = query_queue.front(); query_queue.pop_front();
-    vec_map_str_int result = subquery_results_[front_triplet];
+    ItemVector result = subquery_results_[front_triplet];
 
     while (!query_queue.empty() && !result.empty()) {
         gPSO::triplet temp_triplet = query_queue.front(); query_queue.pop_front();
-        vec_map_str_int temp = subquery_results_[temp_triplet];
+        ItemVector temp = subquery_results_[temp_triplet];
 //        result = join_query(result, temp);
         join_query(result, temp);
     }
@@ -194,9 +193,9 @@ vec_map_str_int SparqlQuery::execute(QueryQueue &query_queue) {
     return result;
 }
 
-set_map_str_int SparqlQuery::execute2(QueryQueue &query_queue) {
-    auto join_query = [&](set_map_str_int& intermediate_result, vec_map_str_int& subquery_result) {
-        set_map_str_int ret;
+ItemSet SparqlQuery::execute2(QueryQueue &query_queue) {
+    auto join_query = [&](ItemSet& intermediate_result, ItemVector& subquery_result) {
+        ItemSet ret;
         ret.reserve(std::max(intermediate_result.size(), subquery_result.size()));
 
         if (intermediate_result.empty() || subquery_result.empty()) {
@@ -221,7 +220,7 @@ set_map_str_int SparqlQuery::execute2(QueryQueue &query_queue) {
                     } else break;
                 }
                 if (match == join_variables.size()) {
-                    map_str_int temp(intermediate);
+                    Item temp(intermediate);
                     temp.insert(subquery.begin(), subquery.end());
                     ret.insert(std::move(temp));
                 }
@@ -233,11 +232,11 @@ set_map_str_int SparqlQuery::execute2(QueryQueue &query_queue) {
 
     gPSO::triplet front_triplet = query_queue.front(); query_queue.pop_front();
     auto front = subquery_results_[front_triplet];
-    set_map_str_int result(front.begin(), front.end());
+    ItemSet result(front.begin(), front.end());
 
     while (!query_queue.empty() && !result.empty()) {
         gPSO::triplet temp_triplet = query_queue.front(); query_queue.pop_front();
-        vec_map_str_int temp = subquery_results_[temp_triplet];
+        ItemVector temp = subquery_results_[temp_triplet];
 //        result = join_query(result, temp);
         join_query(result, temp);
     }
@@ -245,10 +244,10 @@ set_map_str_int SparqlQuery::execute2(QueryQueue &query_queue) {
     return result;
 }
 
-std::vector<std::unordered_map<std::string, std::string>> SparqlQuery::mapQueryResult(vec_map_str_int &query_result) {
+std::vector<std::unordered_map<std::string, std::string>> SparqlQuery::mapQueryResult(ItemVector &query_result) {
     std::vector<std::unordered_map<std::string, std::string>> ret;
     ret.reserve(query_result.size());
-    for (const map_str_int &row : query_result) {
+    for (const Item &row : query_result) {
         std::unordered_map<std::string, std::string> tmp;
         for (const auto &item: row) {
             tmp[item.first] = psoDB_.getSOByID(item.second);
