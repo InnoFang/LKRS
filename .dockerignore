@@ -4,5 +4,4 @@
 bin
 build
 db
-data
 cmake-build-*
