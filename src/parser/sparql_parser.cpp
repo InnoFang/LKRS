@@ -12,7 +12,8 @@ SparqlParser::SparqlParser(const std::string& sparql): distinct_(false) {
     parse(sparql);
 }
 
-SparqlParser::~SparqlParser() {};
+SparqlParser::~SparqlParser() {
+};
 
 void SparqlParser::parse(const std::string &sparql) {
     std::smatch match;
@@ -44,7 +45,7 @@ void SparqlParser::catchTriples(const std::string &raw_triple) {
         return var2id[var];
     };
 
-    std::regex sep("\\.\\s*");
+    std::regex sep("\\.\\s+");
     std::sregex_token_iterator tokens(raw_triple.cbegin(), raw_triple.cend(), sep, -1);
     std::sregex_token_iterator end;
 
