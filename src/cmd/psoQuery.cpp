@@ -7,15 +7,9 @@
 #include "database/database.hpp"
 #include "query/sparql_query.hpp"
 
-static const auto io_speed_up = [] {
-    std::ios::sync_with_stdio(false);
-    std::cin.tie(nullptr);
-    std::cout.tie(nullptr);
-    return 0;
-} ();
-
 std::string readSPARQLFromFile(const std::string& filepath) {
     std::ifstream infile(filepath, std::ios::in);
+    std::ifstream::sync_with_stdio(false);
     std::ostringstream buf;
     std::string sparql;
     char ch;
@@ -31,18 +25,14 @@ std::string readSPARQLFromFile(const std::string& filepath) {
     return sparql;
 }
 
-int main(int argc, char** argv) {
-    std::string dbname = argv[1];
-    std::string query_file = argv[2];
+void execute_query(SparqlQuery& sparqlQuery, const std::string& query_file) {
 
     std::string sparql = readSPARQLFromFile(query_file);
-    SparqlQuery sparqlQuery(dbname);
     SparqlParser parser(sparql);
 
     auto result = sparqlQuery.query(parser);
 
     std::cout << "Used time: " << sparqlQuery.UsedTime << " ms." << std::endl;
-
 
     if (result.empty()) {
         std::cout << "[empty result]" << std::endl;
@@ -50,17 +40,19 @@ int main(int argc, char** argv) {
         auto variables = parser.getQueryVariables();
 
         std::set<std::vector<uint64_t>> unique_result;
-//        for (auto &row : sparqlQuery.mapQueryResult(result)) {
-        for (auto &row : result) {
+        for (const auto &row : result) {
             std::vector<uint64_t> item;
             item.reserve(variables.size());
             for (auto &variable: variables) {
-                item.emplace_back(row[variable]);
+                item.emplace_back(row.at(variable));
             }
             unique_result.insert( std::move(item) );
         }
 
         std::cout << unique_result.size() << " result(s)" << std::endl;
+
+        std::cout << "\n=============================================================\n";
+
         std::copy(variables.begin(), variables.end(), std::ostream_iterator<std::string>(std::cout, "\t"));
         std::cout << std::endl;
         for (const std::vector<uint64_t> &row : unique_result) {
@@ -70,6 +62,35 @@ int main(int argc, char** argv) {
             std::cout << std::endl;
         }
     }
+}
+
+int main(int argc, char** argv) {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
+
+    if (argc == 1) {
+        std::cout << "psoQuery <db_name> <query_file>" << std::endl;
+        std::cout << "psoQuery <db_name>" << std::endl;
+        return 1;
+    }
+    std::string dbname = argv[1];
+    SparqlQuery sparqlQuery(dbname);
+    if (argc >= 3) {
+        std::string query_file = argv[2];
+        execute_query(sparqlQuery, query_file);
+    } else {
+        for (;;) {
+            std::cout << "\nquery >  ";
+            std::string query_file;
+            std::cin >> query_file;
+            if (query_file == "exit" || query_file == "quit" || query_file == "q") {
+                break;
+            }
+            execute_query(sparqlQuery, query_file);
+        }
+    }
 
     return 0;
 }
+// D:\Projects\Cpp\retrieve-system\data\lubm\lubm_q1.sql
