@@ -4,7 +4,7 @@
 
 #include "database/database.hpp"
 
-Database::Database(std::string& dbname) : dbname_(dbname) {
+Database::Database(const std::string& dbname) : dbname_(dbname) {
     db_path_ = fs::path(std::string(__FILE__)).parent_path().parent_path().parent_path()
             .append("db")
             .append(dbname);

@@ -24,7 +24,7 @@ namespace fs = boost::filesystem;
 
 class Database {
 public:
-    explicit Database(std::string& dbname);
+    explicit Database(const std::string& dbname);
     ~Database();
     void create(const std::string& datafile) ;
     bool store();
