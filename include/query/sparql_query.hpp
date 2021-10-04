@@ -19,26 +19,27 @@
 #include "database/database.hpp"
 #include "parser/sparql_parser.hpp"
 
-using Item = std::unordered_map<std::string, uint64_t>;
-using ItemVector = std::vector<Item>;
-
-using QueryPlan = std::vector<std::pair<gPSO::triplet, size_t>>;
-using QueryQueue = std::deque<gPSO::triplet>;
-
-struct ItemHash {
-    size_t operator()(const std::unordered_map<std::string, uint64_t>& m) const {
-        size_t ret = 0;
-        std::hash<std::string> key;
-        std::hash<uint64_t> val;
-        for (const auto &item : m) {
-            ret += key(item.first) + val(item.second);
-        }
-        return ret;
-    }
-};
-using ItemSet = std::unordered_set<Item, ItemHash>;
-
 class SparqlQuery {
+public:
+    using Item = std::unordered_map<std::string, uint64_t>;
+    using ItemVector = std::vector<Item>;
+
+    using QueryPlan = std::vector<std::pair<gPSO::triplet, size_t>>;
+    using QueryQueue = std::deque<gPSO::triplet>;
+
+    struct ItemHash {
+        size_t operator()(const std::unordered_map<std::string, uint64_t>& m) const {
+            size_t ret = 0;
+            std::hash<std::string> key;
+            std::hash<uint64_t> val;
+            for (const auto &item : m) {
+                ret += key(item.first) + val(item.second);
+            }
+            return ret;
+        }
+    };
+    using ItemSet = std::unordered_set<Item, ItemHash>;
+
 public:
     double UsedTime;
     explicit SparqlQuery(const std::string& dbname);

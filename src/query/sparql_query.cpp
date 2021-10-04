@@ -20,7 +20,7 @@ SparqlQuery::SparqlQuery(const std::string& dbname): psoDB_(dbname), UsedTime(0)
 
 SparqlQuery::~SparqlQuery() {};
 
-ItemVector SparqlQuery::query(SparqlParser& parser_) {
+SparqlQuery::ItemVector SparqlQuery::query(SparqlParser& parser_) {
     subquery_results_.clear();
     UsedTime = 0;
     parser = parser_;
@@ -60,7 +60,7 @@ ItemVector SparqlQuery::query(SparqlParser& parser_) {
     return result;
 }
 
-QueryPlan SparqlQuery::preprocessing_async(const std::vector<gPSO::triplet> &triplets) {
+SparqlQuery::QueryPlan SparqlQuery::preprocessing_async(const std::vector<gPSO::triplet> &triplets) {
     subquery_results_.clear();
     subquery_results_.reserve(triplets.size());
 
@@ -92,7 +92,7 @@ QueryPlan SparqlQuery::preprocessing_async(const std::vector<gPSO::triplet> &tri
     return init_query_plan;
 }
 
-QueryPlan SparqlQuery::preprocessing(const std::vector<gPSO::triplet> &triplets) {
+SparqlQuery::QueryPlan SparqlQuery::preprocessing(const std::vector<gPSO::triplet> &triplets) {
 
     subquery_results_.reserve(triplets.size());
 
@@ -112,7 +112,7 @@ QueryPlan SparqlQuery::preprocessing(const std::vector<gPSO::triplet> &triplets)
     return init_query_plan;
 }
 
-QueryQueue SparqlQuery::rearrangeQueryPlan(QueryPlan& init_query_plan) {
+SparqlQuery::QueryQueue SparqlQuery::rearrangeQueryPlan(QueryPlan& init_query_plan) {
     sort(init_query_plan.begin(), init_query_plan.end(),
          [&](std::pair<gPSO::triplet, size_t>& a, std::pair<gPSO::triplet, size_t>& b) {
              return a.second < b.second;
@@ -143,7 +143,7 @@ QueryQueue SparqlQuery::rearrangeQueryPlan(QueryPlan& init_query_plan) {
     return query_queue;
 }
 
-ItemVector SparqlQuery::execute(QueryQueue &query_queue) {
+SparqlQuery::ItemVector SparqlQuery::execute(QueryQueue &query_queue) {
     auto join_query = [](ItemVector& intermediate_result, ItemVector& subquery_result) {
         ItemVector ret;
         ret.reserve(std::max(intermediate_result.size(), subquery_result.size()));
@@ -193,7 +193,7 @@ ItemVector SparqlQuery::execute(QueryQueue &query_queue) {
     return result;
 }
 
-ItemSet SparqlQuery::execute2(QueryQueue &query_queue) {
+SparqlQuery::ItemSet SparqlQuery::execute2(QueryQueue &query_queue) {
     auto join_query = [&](ItemSet& intermediate_result, ItemVector& subquery_result) {
         ItemSet ret;
         ret.reserve(std::max(intermediate_result.size(), subquery_result.size()));
