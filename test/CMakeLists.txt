@@ -1,5 +1,7 @@
-file(GLOB SOURCE_FILES  *.cpp)
-source_group("Source" FILES ${SOURCE_FILES})
+set(SOURCE_FILES
+        test.cpp
+        sparql_parser_test.cpp
+        )
 
 add_executable(unitTests ${SOURCE_FILES})
 target_link_libraries(unitTests parser common ${CONAN_LIBS})
