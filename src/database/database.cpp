@@ -5,7 +5,7 @@
 #include "database/database.hpp"
 
 Database::Database(const std::string& dbname) : dbname_(dbname) {
-    db_path_ = fs::path(std::string(__FILE__)).parent_path().parent_path().parent_path()
+    db_path_ = fs::path(__FILE__).parent_path().parent_path().parent_path()
             .append("db")
             .append(dbname);
 
@@ -38,7 +38,6 @@ void Database::create(const std::string& datafile) {
             infile.ignore();
             std::getline(infile, o);
             for (o.pop_back(); o.back() == ' ' || o.back() == '.'; o.pop_back());
-
 
             triples_.emplace_back( s, p, o );
 
@@ -343,3 +342,4 @@ std::vector<std::unordered_map<std::string, uint64_t>> Database::getQualifiedSOL
 std::string Database::getSOByID(const uint64_t& so_id) const {
     return id2so_[so_id];
 }
+
