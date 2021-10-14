@@ -19,6 +19,8 @@
 
 #include "common/skip_list.hpp"
 
+namespace inno {
+
 namespace fs = boost::filesystem;
 
 class DatabaseBuilder::Impl {
@@ -71,7 +73,8 @@ public:
 
     bool save() {
         if (db_name_.empty()) {
-            spdlog::info("Haven't specify a database yet, you should create or load on before this operation.");
+            spdlog::info("Save Failed! Haven't specified a database yet, "
+                         "you should call create or load before this operation.");
             return false;
         }
 
@@ -405,4 +408,6 @@ bool DatabaseBuilder::save() {
 
 void DatabaseBuilder::unload() {
     return impl_->unload();
+}
+
 }

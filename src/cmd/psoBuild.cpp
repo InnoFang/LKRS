@@ -21,7 +21,7 @@ int main (int argc, char* argv[]) {
     std::string datafile = argv[2];
     std::cout << dbname << " " << datafile << std::endl;
 
-    DatabaseBuilder db;
+    inno::DatabaseBuilder db;
     auto start_time = std::chrono::high_resolution_clock::now();
 
     db.create(dbname, datafile);
