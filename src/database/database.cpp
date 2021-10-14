@@ -2,7 +2,7 @@
 // Created by InnoFang on 2021/6/19.
 //
 
-#include "database/database.hpp"
+#include "database/_database.hpp"
 
 Database::Database(const std::string& dbname) : dbname_(dbname) {
     db_path_ = fs::path(__FILE__).parent_path().parent_path().parent_path()
