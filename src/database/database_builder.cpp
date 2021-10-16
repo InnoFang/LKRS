@@ -3,12 +3,13 @@
  * @CreateAt   : 2021/6/19
  * @Author     : Inno Fang
  * @Email      : innofang@yeah.net
- * @Description:
+ * @Description: implement `DatabaseBuilder` and its sub-class
  */
 
 
 #include "database/database_builder.hpp"
 
+#include <set>
 #include <vector>
 #include <future>
 #include <fstream>
@@ -25,13 +26,14 @@ namespace fs = boost::filesystem;
 
 class DatabaseBuilder::Impl {
 private:
-    using so_pair_list = inno::SkipList<std::pair<uint32_t, uint32_t>>;
+//    using so_pair_list = inno::SkipList<std::pair<uint32_t, uint32_t>>;
+    using so_pair_list = std::set<std::pair<uint32_t, uint32_t>>;
 
 public:
     Impl()  { initialize_(); }
     ~Impl() { unload(); }
 
-    bool create(const std::string &db_name, const std::string &data_file) {
+    DatabaseBuilder::Impl *create(const std::string &db_name, const std::string &data_file) {
         db_name_ = db_name;
 
         std::ifstream infile(data_file, std::ifstream::binary);
@@ -44,36 +46,42 @@ public:
                 std::getline(infile, o);
                 for (o.pop_back(); o.back() == ' ' || o.back() == '.'; o.pop_back()) {}
 
-                triplet_size_ ++;
-
-                if (!p2id_.count(p)) {
-                    p2id_[p] = ++predicate_size_;
-                    id2p_.emplace_back(p);
-                }
-
-                if (!so2id_.count(s)) {
-                    so2id_[s] = ++ entity_size_;
-                    id2so_.emplace_back(s);
-                }
-
-                if (!so2id_.count(o)) {
-                    so2id_[o] = ++ entity_size_;
-                    id2so_.emplace_back(o);
-                }
-
-                storage_[p2id_[p]].insert({so2id_[s], so2id_[o]});
+                insert(s, p, o);
             }
 
-            return save();
+            save();
+            return this;
         } else {
             spdlog::error("Cannot open RDF data file, problem occurs by path '{}'", data_file);
-            return false;
+            return nullptr;
         }
+    }
+
+    bool insert(const std::string &s, const std::string &p, const std::string &o) {
+        triplet_size_ ++;
+
+        if (!p2id_.count(p)) {
+            p2id_[p] = ++ predicate_size_;
+            id2p_.emplace_back(p);
+        }
+
+        if (!so2id_.count(s)) {
+            so2id_[s] = ++ entity_size_;
+            id2so_.emplace_back(s);
+        }
+
+        if (!so2id_.count(o)) {
+            so2id_[o] = ++ entity_size_;
+            id2so_.emplace_back(o);
+        }
+
+        storage_[p2id_[p]].insert({so2id_[s], so2id_[o]});
+        return true;
     }
 
     bool save() {
         if (db_name_.empty()) {
-            spdlog::info("Save Failed! Haven't specified a database yet, "
+                spdlog::info("Save Failed! Haven't specified a database yet, "
                          "you should call create or load before this operation.");
             return false;
         }
@@ -116,7 +124,7 @@ public:
         return true;
     }
 
-    bool load(const std::string &db_name) {
+    DatabaseBuilder::Impl *load(const std::string &db_name) {
         db_name_ = db_name;
 
         fs::ifstream::sync_with_stdio(false);
@@ -151,7 +159,7 @@ public:
         soid_load_task.get();
         triplet_load_task.get();
 
-        return true;
+        return this;
     }
 
     void unload() {
@@ -295,7 +303,6 @@ private:
         return true;
     }
 
-
     /* store the predicate -> <subject, object> */
     bool store_triplet_(const fs::path &path) const {
         fs::create_directories(path);
@@ -391,23 +398,35 @@ DatabaseBuilder::DatabaseBuilder()
     : impl_(new DatabaseBuilder::Impl()) {}
 
 DatabaseBuilder::~DatabaseBuilder() {
-    unload();
+    if (opt_ != nullptr) {
+        opt_->unload();
+        delete opt_;
+    }
+    delete impl_;
 }
 
-bool DatabaseBuilder::create(const std::string &db_name, const std::string &data_file) {
-    return impl_->create(db_name, data_file);
+DatabaseBuilder::Option *DatabaseBuilder::create(const std::string &db_name, const std::string &data_file) {
+    auto impl = impl_->create(db_name, data_file);
+    this->opt_ = new DatabaseBuilder::Option(impl);
+    return this->opt_;
 }
 
-bool DatabaseBuilder::load(const std::string &db_name) {
-    return impl_->load(db_name);
+DatabaseBuilder::Option *DatabaseBuilder::load(const std::string &db_name) {
+    auto impl = impl_->load(db_name);
+    this->opt_ = new DatabaseBuilder::Option(impl);
+    return this->opt_;
 }
 
-bool DatabaseBuilder::save() {
+bool DatabaseBuilder::Option::save() {
     return impl_->save();
 }
 
-void DatabaseBuilder::unload() {
+void DatabaseBuilder::Option::unload() {
     return impl_->unload();
+}
+
+bool DatabaseBuilder::Option::insert(const std::string &s, const std::string &p, const std::string &o) {
+    return impl_->insert(s, p, o);
 }
 
 }
