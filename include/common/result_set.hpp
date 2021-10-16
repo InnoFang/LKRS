@@ -12,6 +12,8 @@
 #include <vector>
 #include <unordered_map>
 
+namespace inno {
+
 template<typename Key, typename Value>
 class ResultSet {
 public:
@@ -90,5 +92,7 @@ public:
 private:
     std::vector<item_type> result_;
 };
+
+}
 
 #endif //RETRIEVE_SYSTEM_RESULT_SET_HPP
