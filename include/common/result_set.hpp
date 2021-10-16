@@ -3,7 +3,7 @@
  * @CreateAt   : 2021/10/14
  * @Author     : Inno Fang
  * @Email      : innofang@yeah.net
- * @Description:
+ * @Description: Just as its name implies, this is used to collect the mappings of query variables and its value.
  */
 
 #ifndef RETRIEVE_SYSTEM_RESULT_SET_HPP
@@ -21,7 +21,6 @@ private:
     using item_type = std::unordered_map<key_type, value_type>;
 
 public:
-
     ResultSet() = default;
     explicit ResultSet(const size_t &size): result_(size) {}
     ResultSet(const size_t &size, item_type item): result_(size, item) {}
