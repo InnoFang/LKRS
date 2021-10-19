@@ -47,6 +47,7 @@ public:
 
         /* save the database data */
         bool save();
+        bool save(const std::string &db_name);
 
         /* unload the database */
         void unload();
