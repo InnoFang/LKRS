@@ -81,20 +81,24 @@ public:
 
     bool save() {
         if (db_name_.empty()) {
-                spdlog::info("Save Failed! Haven't specified a database yet, "
+            spdlog::info("Save Failed! Haven't specified a database yet, "
                          "you should call create or load before this operation.");
             return false;
         }
+        return save(db_name_);
+    }
 
+    bool save(const std::string &db_name) {
         fs::ofstream::sync_with_stdio(false);
 
-        fs::path db_path = fs::current_path().parent_path().append(db_name_ + ".db");
+        fs::path db_path = fs::current_path().parent_path().append(db_name + ".db");
         fs::path info_path("info");
         fs::path id_predicates_path("id_predicates");
         fs::path id_entities_path("id_entities");
         fs::path triplet_path("triplet");
 
         fs::create_directories(db_path);
+        fs::create_directories(db_path/triplet_path);
 
         auto info_store_task = std::async(std::launch::async,
                                           &DatabaseBuilder::Impl::store_basic_info,
@@ -116,10 +120,10 @@ public:
                                          this,
                                          db_path/triplet_path);
 
+        triplet_store_task.get();
         info_store_task.get();
         pid_store_task.get();
         soid_store_task.get();
-        triplet_store_task.get();
 
         return true;
     }
@@ -304,8 +308,7 @@ private:
     }
 
     /* store the predicate -> <subject, object> */
-    bool store_triplet_(const fs::path &path) const {
-        fs::create_directories(path);
+    bool store_triplet_(const fs::path &path) {
         if (!fs::exists(path)) {
             spdlog::error("store_triplet_ function occurs problem, "
                           "`triplet` directory cannot be created");
@@ -315,29 +318,12 @@ private:
         std::vector<std::future<bool>> task_list;
         task_list.reserve(storage_.size());
 
-        for (uint32_t i = 1; i <= predicate_size_; ++i) {
-            fs::path child_path = path/fs::path(std::to_string(i));
-
-            auto triplet_task = std::async(std::launch::async,
-               [](fs::path sub_path, const so_pair_list &so_list) {
-
-                   fs::ofstream out(sub_path, fs::ofstream::out | fs::ofstream::binary);
-                   if (out.is_open()) {
-                       for (const auto &so : so_list) {
-                           std::string item = std::to_string(so.first) + " " +
-                                              std::to_string(so.second) + "\n";
-                           out.write(item.c_str(), item.size());
-                       }
-                       out.close();
-                       return true;
-                   } else {
-                       spdlog::error("store_triplet_ function occurs problem, "
-                                     "`{}` cannot be written.", sub_path.string());
-                       return false;
-                   }
-               }, child_path, std::cref(storage_.at(i)));
-
-            task_list.emplace_back(std::move(triplet_task));
+        for (uint32_t pid = 1; pid <= predicate_size_; ++pid) {
+            task_list.emplace_back(std::async(std::launch::async,
+                                              &DatabaseBuilder::Impl::store_triplet_with_pid_,
+                                              this,
+                                              path/fs::path(std::to_string(pid)),
+                                              pid));
         }
 
         for (std::future<bool> &task : task_list) {
@@ -345,6 +331,23 @@ private:
         }
 
         return true;
+    }
+
+    bool store_triplet_with_pid_(const fs::path &path, const uint32_t &pid) {
+        fs::ofstream out(path, fs::ofstream::out | fs::ofstream::binary);
+        if (out.is_open()) {
+            for (const auto &so : storage_[pid]) {
+                std::string item = std::to_string(so.first) + " " +
+                                   std::to_string(so.second) + "\n";
+                out.write(item.c_str(), item.size());
+            }
+            out.close();
+            return true;
+        } else {
+            spdlog::error("store_triplet_ function occurs problem, "
+                          "`{}` cannot be written.", path.string());
+            return false;
+        }
     }
 
     /* store the predicate -> <subject, object> */
@@ -363,7 +366,7 @@ private:
 
             fs::ifstream in(child_path, fs::ifstream::in | fs::ifstream::binary);
             if (in.is_open()) {
-                while (in.eof()) {
+                while (!in.eof()) {
                     uint32_t sid, oid;
                     in >> sid >> oid;
                     storage_[pid].insert({sid, oid});
@@ -420,6 +423,11 @@ DatabaseBuilder::Option *DatabaseBuilder::load(const std::string &db_name) {
 bool DatabaseBuilder::Option::save() {
     return impl_->save();
 }
+
+bool DatabaseBuilder::Option::save(const std::string &db_name) {
+    return impl_->save(db_name);
+}
+
 
 void DatabaseBuilder::Option::unload() {
     return impl_->unload();
