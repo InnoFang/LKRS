@@ -1,345 +1,440 @@
-//
-// Created by InnoFang on 2021/6/19.
-//
+/*
+ * @FileName   : database_builder.cpp
+ * @CreateAt   : 2021/6/19
+ * @Author     : Inno Fang
+ * @Email      : innofang@yeah.net
+ * @Description: implement `DatabaseBuilder` and its sub-class
+ */
 
-#include "database/_database.hpp"
 
-Database::Database(const std::string& dbname) : dbname_(dbname) {
-    db_path_ = fs::path(__FILE__).parent_path().parent_path().parent_path()
-            .append("db")
-            .append(dbname);
+#include "database/database_builder.hpp"
 
-    info_path_ = fs::path(db_path_).append("info");
-    pid_path_ = fs::path(db_path_).append("pid");
-    soid_path_ = fs::path(db_path_).append("soid");
-    pso_path_ = fs::path(db_path_).append("pso");
+#include <set>
+#include <vector>
+#include <future>
+#include <fstream>
+#include <unordered_map>
 
-    /* initialize */
-    triple_size_ = 0;
-    p_size_ = 0;
-    so_size_ = 0;
-    triples_.clear();
-    p2id_.clear();
-    id2p_.assign(1, "");
-    so2id_.clear();
-    id2so_.assign(1, "");
-    p_indices_.assign(1, 0);
-}
+#include <spdlog/spdlog.h>
+#include <boost/filesystem.hpp>
 
-Database::~Database() {}
+#include "common/skip_list.hpp"
 
-void Database::create(const std::string& datafile) {
-    std::ifstream infile(datafile, std::ifstream::binary);
-    std::ifstream::sync_with_stdio(false);
-    infile.tie(nullptr);
-    if (infile.is_open()) {
-        std::string s, p, o;
-        while (infile >> s >> p) {
-            infile.ignore();
-            std::getline(infile, o);
-            for (o.pop_back(); o.back() == ' ' || o.back() == '.'; o.pop_back());
+namespace inno {
 
-            triples_.emplace_back( s, p, o );
+namespace fs = boost::filesystem;
 
-            if (!p2id_.count(p)) {
-                p2id_[p] = ++ p_size_;
-                id2p_.push_back(p);
-                p_indices_.push_back(0);
-            }
-            p_indices_[p2id_[p]] += 1;
+class DatabaseBuilder::Impl {
+private:
+//    using so_pair_list = inno::SkipList<std::pair<uint32_t, uint32_t>>;
+    using so_pair_list = std::set<std::pair<uint32_t, uint32_t>>;
 
-            if (!so2id_.count(s)) {
-                so2id_[s] = ++ so_size_;
-                id2so_.push_back(s);
+public:
+    Impl()  { initialize_(); }
+    ~Impl() { unload(); }
+
+    DatabaseBuilder::Impl *create(const std::string &db_name, const std::string &data_file) {
+        db_name_ = db_name;
+
+        std::ifstream infile(data_file, std::ifstream::binary);
+        std::ifstream::sync_with_stdio(false);
+
+        if (infile.is_open()) {
+            std::string s, p, o;
+            while (infile >> s >> p) {
+                infile.ignore();
+                std::getline(infile, o);
+                for (o.pop_back(); o.back() == ' ' || o.back() == '.'; o.pop_back()) {}
+
+                insert(s, p, o);
             }
 
-            if (!so2id_.count(o)) {
-                so2id_[o] = ++ so_size_;
-                id2so_.push_back(o);
-            }
-            ++ triple_size_;
-        }
-
-        // handle predicate prefix sum
-        p_range_.assign(p_indices_.size() + 1, 0);
-        for (size_t i = 1; i <= p_indices_.size(); ++ i) {
-            p_range_[i] = p_range_[i - 1] + p_indices_[i - 1];
-        }
-
-        // handle hex-number manipulation
-        hexManipulation();
-
-        // generate PSO
-        generatePSO();
-        store();
-
-        infile.close();
-    } else {
-        std::cerr << "cannot open rdfFile: "<< datafile << std::endl;
-    }
-}
-
-int Database::calcHexLength(size_t length) {
-    return int(ceil(log(length + 1) / log(16)));
-}
-
-void Database::hexManipulation() {
-    /* hex-manipulation */
-    // get the hex-number size of 'p' and 'so'
-    p_hex_len_ = calcHexLength(p_size_);
-    so_hex_len_ = calcHexLength(so_size_);
-    p_mask_ = (1 << (p_hex_len_ << 2)) - 1;
-    s_mask_ = o_mask_ = (1 << (so_hex_len_ << 2)) - 1;
-
-    p_mask_<<= (so_hex_len_ << 3);
-    s_mask_<<= (so_hex_len_ << 2);
-}
-
-void Database::generatePSO() {
-    pso_.clear();
-    pso_.reserve(triple_size_);
-    std::string s, p, o;
-    for (const auto &triple : triples_) {
-        std::tie(s, p, o) = triple;
-        pso_.push_back(gPSO::encodePSO(p2id_[p], so2id_[s], so2id_[o], so_hex_len_));
-    }
-
-    std::sort(pso_.begin(), pso_.end());
-}
-
-bool Database::store() {
-    fs::ofstream::sync_with_stdio(false);
-    fs::create_directories(db_path_);
-
-    // database file 1: info
-    auto store_info = [&]() {
-        fs::ofstream infoDataOut(info_path_, std::ofstream::binary);
-        infoDataOut.tie(nullptr);
-        if (infoDataOut.is_open()) {
-            infoDataOut << triple_size_ << "\n"
-                        << p_size_ << "\n"
-                        << so_size_ << "\n"
-                        << p_hex_len_ << "\n"
-                        << so_hex_len_ << "\n"
-                        << p_mask_ << "\n"
-                        << s_mask_ << "\n"
-                        << o_mask_ << "\n";
-            for (auto& index : p_indices_) {
-                infoDataOut << index << " ";
-            }
-            infoDataOut << "\n";
-            for (auto& range : p_range_) {
-                infoDataOut << range << " ";
-            }
-            infoDataOut << "\n";
-            infoDataOut.close();
+            save();
+            return this;
         } else {
-            std::cerr << "cannot create file: "<< info_path_ << std::endl;
+            spdlog::error("Cannot open RDF data file, problem occurs by path '{}'", data_file);
+            return nullptr;
         }
-    };
+    }
 
-    // database file 2: pid
-    auto pid_task = std::async(std::launch::async, [](fs::path& path, std::vector<std::string>& p_list) {
+    bool insert(const std::string &s, const std::string &p, const std::string &o) {
+        triplet_size_ ++;
 
-        fs::ofstream pidDataOut(path, fs::ofstream::binary);
-        pidDataOut.tie(nullptr);
-        if (pidDataOut.is_open()) {
-            for (size_t i = 1; i < p_list.size(); ++ i) {
-//                pidDataOut << i << "\t" << p_list[i] << "\n";
-                std::string id_p = std::to_string(i) + "\t" + p_list[i] + "\n";
-                pidDataOut.write(id_p.c_str(), id_p.size());
-            }
-            pidDataOut.close();
+        if (!p2id_.count(p)) {
+            p2id_[p] = ++ predicate_size_;
+            id2p_.emplace_back(p);
         }
 
-    }, std::ref(pid_path_), std::ref(id2p_));
-
-    // database file 3: soid
-    // soid su/object
-    auto soid_task = std::async(std::launch::async, [](fs::path& path, std::vector<std::string>& so_list) {
-
-        fs::ofstream soidDataOut(path, std::ofstream::binary);
-        soidDataOut.tie(nullptr);
-        if (soidDataOut.is_open()) {
-            for (size_t i = 1; i < so_list.size(); ++i) {
-//                soidDataOut << i << "\t" << so_list[i] << "\n";
-                std::string id_so = std::to_string(i) + "\t" + so_list[i] + "\n";
-                soidDataOut.write(id_so.c_str(), id_so.size());
-//                soidDataOut << i << std::endl;;
-            }
-            soidDataOut.close();
+        if (!so2id_.count(s)) {
+            so2id_[s] = ++ entity_size_;
+            id2so_.emplace_back(s);
         }
 
-    }, std::ref(soid_path_), std::ref(id2so_));
+        if (!so2id_.count(o)) {
+            so2id_[o] = ++ entity_size_;
+            id2so_.emplace_back(o);
+        }
 
-    // database file 4: pso
-        auto pso_task = std::async(std::launch::async, [&](fs::path& path, std::vector<uint64_t>& pso_list) {
-        fs::ofstream psoDataOut(path, std::ofstream::binary);
-        psoDataOut.tie(nullptr);
-        if (psoDataOut.is_open()) {
-            for (auto& pso : pso_list) {
-                std::string pso_str = std::to_string(pso) + "\n";
-                psoDataOut.write(pso_str.c_str(), pso_str.size());
-            }
-            psoDataOut.close();
+        storage_[p2id_[p]].insert({so2id_[s], so2id_[o]});
+        return true;
+    }
+
+    bool save() {
+        if (db_name_.empty()) {
+            spdlog::info("Save Failed! Haven't specified a database yet, "
+                         "you should call create or load before this operation.");
+            return false;
+        }
+        return save(db_name_);
+    }
+
+    bool save(const std::string &db_name) {
+        fs::ofstream::sync_with_stdio(false);
+
+        fs::path db_path = fs::current_path().parent_path().append(db_name + ".db");
+        fs::path info_path("info");
+        fs::path id_predicates_path("id_predicates");
+        fs::path id_entities_path("id_entities");
+        fs::path triplet_path("triplet");
+
+        fs::create_directories(db_path);
+        fs::create_directories(db_path/triplet_path);
+
+        auto info_store_task = std::async(std::launch::async,
+                                          &DatabaseBuilder::Impl::store_basic_info,
+                                          this,
+                                          db_path/info_path);
+
+        auto pid_store_task = std::async(std::launch::async,
+                                          &DatabaseBuilder::Impl::store_predicate_ids_,
+                                          this,
+                                          db_path/id_predicates_path);
+
+        auto soid_store_task = std::async(std::launch::async,
+                                         &DatabaseBuilder::Impl::store_entity_ids_,
+                                         this,
+                                         db_path/id_entities_path);
+
+        auto triplet_store_task = std::async(std::launch::async,
+                                         &DatabaseBuilder::Impl::store_triplet_,
+                                         this,
+                                         db_path/triplet_path);
+
+        triplet_store_task.get();
+        info_store_task.get();
+        pid_store_task.get();
+        soid_store_task.get();
+
+        return true;
+    }
+
+    DatabaseBuilder::Impl *load(const std::string &db_name) {
+        db_name_ = db_name;
+
+        fs::ifstream::sync_with_stdio(false);
+
+        fs::path db_path = fs::current_path().parent_path().append(db_name + ".db");
+        fs::path info_path("info");
+        fs::path id_predicates_path("id_predicates");
+        fs::path id_entities_path("id_entities");
+        fs::path triplet_path("triplet");
+
+        load_basic_info(db_path/info_path);
+
+        auto pid_load_task = std::async(std::launch::async,
+                                         &DatabaseBuilder::Impl::load_predicate_ids_,
+                                         this,
+                                         db_path/id_predicates_path,
+                                         predicate_size_);
+
+        auto soid_load_task = std::async(std::launch::async,
+                                          &DatabaseBuilder::Impl::load_entity_ids_,
+                                          this,
+                                          db_path/id_entities_path,
+                                          entity_size_);
+
+        auto triplet_load_task = std::async(std::launch::async,
+                                             &DatabaseBuilder::Impl::load_triplet_,
+                                             this,
+                                             db_path/triplet_path,
+                                             predicate_size_);
+
+        pid_load_task.get();
+        soid_load_task.get();
+        triplet_load_task.get();
+
+        return this;
+    }
+
+    void unload() {
+        db_name_.clear();
+        predicate_size_ = 0;
+        entity_size_ = 0;
+        triplet_size_ = 0;
+        so2id_.clear();
+        p2id_.clear();
+        id2so_.clear();
+        id2p_.clear();
+        storage_.clear();
+    }
+
+private:
+    void initialize_() {
+        predicate_size_ = 0;
+        entity_size_ = 0;
+        triplet_size_ = 0;
+        id2so_.resize(1);
+        id2p_.resize(1);
+    }
+
+    /* store database basic information */
+    bool store_basic_info(const fs::path &path) const {
+        fs::ofstream out(path, fs::ofstream::out | fs::ofstream::binary);
+        if (out.is_open()) {
+            std::string content = std::to_string(triplet_size_) + "\n" +
+                                  std::to_string(predicate_size_) + "\n" +
+                                  std::to_string(entity_size_) + "\n";
+            out.write(content.c_str(), content.size());
+            out.close();
         } else {
-            std::cerr << "cannot create file: "<< pso_path_ << std::endl;
+            spdlog::error("store_basic_info function occurs problem, "
+                          "`info` file cannot be written.");
+            return false;
         }
-    }, std::ref(pso_path_), std::ref(pso_));
-
-    store_info();
-    pid_task.wait();
-    soid_task.wait();
-    pso_task.wait();
-
-    return true;
-}
-
-bool Database::load() {
-    // database file 1: info
-    std::ifstream infoDataIn(info_path_.string(), std::ifstream::binary);
-    if (infoDataIn.is_open()) {
-        infoDataIn  >> triple_size_
-                    >> p_size_
-                    >> so_size_
-                    >> p_hex_len_
-                    >> so_hex_len_
-                    >> p_mask_
-                    >> s_mask_
-                    >> o_mask_ ;
-        p_indices_.assign(p_size_ + 1, 0);
-        for (int & p_index : p_indices_) {
-            infoDataIn >> p_index;
-        }
-        p_range_.assign(p_size_ + 2, 0);
-        for (int & p_range : p_range_) {
-            infoDataIn >> p_range;
-        }
-        infoDataIn.close();
-    } else {
-        std::cerr << "cannot read from file: " << info_path_ << std::endl;
-        return false;
+        return true;
     }
 
-    // database file 2: pid
-    // pid predicate
-    // id2p_.clear();
-    id2p_.resize(p_size_ + 1);
-    p2id_.clear();
-    p2id_.reserve(p_size_);
-    std::ifstream pidDataIn(pid_path_.string(), std::ifstream::binary);
-    if (pidDataIn.is_open()) {
-        for (size_t i = 0; i < p_size_; ++ i) {
-            uint64_t index;
-            std::string predicate;
-            pidDataIn >> index >> predicate;
-            id2p_[index] = predicate;
-            p2id_[predicate] = index;
+    /* load database basic information */
+    bool load_basic_info(const fs::path &path) {
+        fs::ifstream in(path, fs::ifstream::in | fs::ifstream::binary);
+        if (in.is_open()) {
+            in >> triplet_size_
+               >> predicate_size_
+               >> entity_size_;
+            in.close();
+        } else {
+            spdlog::error("load_basic_info function occurs problem, "
+                          "`info` file cannot be read.");
+            return false;
         }
-        pidDataIn.close();
-    } else {
-        std::cerr << "cannot read from file: " << pid_path_ << std::endl;
-        return false;
+        return true;
     }
 
-    // database file 3: soid
-    // id2so_.clear();
-    id2so_.resize(so_size_ + 1);
-    so2id_.clear();
-    so2id_.reserve(so_size_);
-    std::ifstream soidDataIn(soid_path_.string(), std::ifstream::binary);
-    if (soidDataIn.is_open()) {
-
-        for (size_t i = 0; i < so_size_; ++ i) {
-            uint64_t index;
-            std::string suobject;
-            soidDataIn >> index;
-            soidDataIn.ignore();
-            std::getline(soidDataIn, suobject);
-            id2so_[index] = suobject;
-            so2id_[suobject] = index;
-        }
-        soidDataIn.close();
-    } else {
-        std::cerr << "cannot read from file: " << soid_path_ << std::endl;
-        return false;
-    }
-
-    // database file 4: pso
-    std::ifstream psoDataIn(pso_path_.string(), std::ifstream::binary);
-    if (psoDataIn.is_open()) {
-        pso_.clear();
-        pso_.resize(triple_size_);
-        for (size_t i = 0; i < triple_size_; ++ i) {
-            psoDataIn >> pso_[i];
-        }
-        psoDataIn.close();
-    } else {
-        std::cerr << "cannot read from file: " << pso_path_ << std::endl;
-        return false;
-    }
-
-    return true;
-}
-
-std::tuple<uint64_t, uint64_t> Database::getVarPSOAndMask(const gPSO::triplet& triplet) {
-    std::string s, p, o;
-    std::tie(s, p, o) = triplet;
-
-    uint64_t predicate = (p[0] == '?') ? 0 : p2id_[p];
-    uint64_t subject = (s[0] == '?') ? 0 : so2id_[s];
-    uint64_t object = (o[0] == '?') ? 0 : so2id_[o];
-
-    uint64_t pso = gPSO::encodePSO(predicate, subject, object, so_hex_len_);
-    uint64_t pso_mask = (predicate == 0 ? 0 : p_mask_)
-                        | (subject == 0 ? 0 : s_mask_)
-                        | (object == 0 ? 0 : o_mask_);
-    return std::make_tuple(pso, pso_mask);
-}
-
-std::vector<std::unordered_map<std::string, uint64_t>> Database::getQualifiedSOList(const gPSO::triplet& query_triplet) {
-    std::string s, p, o;
-    std::tie(s, p, o) = query_triplet;
-
-    uint64_t query_pso, query_pso_mask;
-    std::tie(query_pso, query_pso_mask) = getVarPSOAndMask(query_triplet);
-
-    if ((query_pso & p_mask_) == 0) {
-        std::cout << "without predicate" << std::endl;
-        return {};
-    }
-
-    // get subject/predicate/object label respectively from triplet
-    uint64_t pid, sid, oid;
-    std::tie(pid, sid, oid) = gPSO::decodePSO(query_pso, query_pso_mask, so_hex_len_);
-
-    int p_size = p_indices_[pid];
-    std::vector<std::unordered_map<std::string, uint64_t>> qualified_so;
-    qualified_so.reserve(p_size);
-
-    int start = p_range_[pid], end = p_range_[pid + 1];
-    std::for_each(pso_.begin() + start, pso_.begin() + end, [&](uint64_t pso) {
-        if ((pso & query_pso_mask) == query_pso) {
-            uint64_t match_pso = pso & (~query_pso_mask);
-
-            std::tie(pid, sid, oid) = gPSO::decodePSO(match_pso, so_hex_len_);
-
-            std::unordered_map<std::string, uint64_t> item;
-
-            if (sid != 0) {
-                item[s] = sid;
+    /* store the mapping between pid and predicates */
+    bool store_predicate_ids_(const fs::path &path) const {
+        fs::ofstream out(path, fs::ofstream::out | fs::ofstream::binary);
+        if (out.is_open()) {
+            for (size_t i = 1; i <= predicate_size_; ++ i) {
+                std::string item = std::to_string(i) + "\t" +
+                                   id2p_[i] + "\n";
+                out.write(item.c_str(), item.size());
             }
-            if (oid != 0) {
-                item[o] = oid;
+            out.close();
+        } else {
+            spdlog::error("store_predicate_ids_ function occurs problem, "
+                          "`id_predicates` file cannot be written.");
+            return false;
+        }
+        return true;
+    }
+
+    /* load the mapping between pid and predicates */
+    bool load_predicate_ids_(const fs::path &path, const uint32_t &predicate_size) {
+        p2id_.clear();
+        p2id_.reserve(static_cast<size_t>(predicate_size * 0.75));
+        id2p_.clear();
+        id2p_.resize(predicate_size + 1);
+
+        fs::ifstream in(path, fs::ifstream::in | fs::ifstream::binary);
+        if (in.is_open()) {
+            for (size_t i = 1; i <= predicate_size_; ++ i) {
+                uint32_t pid;
+                std::string predicate;
+                in >> pid >> predicate;
+                id2p_[pid] = predicate;
+                p2id_[predicate] = pid;
+            }
+            in.close();
+        } else {
+            spdlog::error("load_predicate_ids_ function occurs problem, "
+                          "`id_predicates` file cannot be read.");
+            return false;
+        }
+        return true;
+    }
+
+
+    /* store the mapping between soid and entities */
+    bool store_entity_ids_(const fs::path &path) const {
+        fs::ofstream out(path, fs::ofstream::out | fs::ofstream::binary);
+        if (out.is_open()) {
+            for (size_t i = 1; i <= entity_size_; ++ i) {
+                std::string item = std::to_string(i) + "\t" +
+                                   id2so_[i] + "\n";
+                out.write(item.c_str(), item.size());
+            }
+            out.close();
+        } else {
+            spdlog::error("store_entity_ids_ function occurs problem, "
+                          "`id_entities` file cannot be written.");
+            return false;
+        }
+        return true;
+    }
+
+    /* load the mapping between soid and entities */
+    bool load_entity_ids_(const fs::path &path, const uint32_t &entity_size) {
+        so2id_.clear();
+        so2id_.reserve(static_cast<size_t>(entity_size * 0.75));
+        id2so_.clear();
+        id2so_.resize(entity_size + 1);
+
+        fs::ifstream in(path, fs::ifstream::in | fs::ifstream::binary);
+        if (in.is_open()) {
+            for (size_t i = 1; i <= predicate_size_; ++ i) {
+                uint32_t soid;
+                std::string entity;
+                in >> soid >> entity;
+                id2so_[soid] = entity;
+                so2id_[entity] = soid;
+            }
+            in.close();
+        } else {
+            spdlog::error("load_entity_ids_ function occurs problem, "
+                          "`id_entities` file cannot be read.");
+            return false;
+        }
+        return true;
+    }
+
+    /* store the predicate -> <subject, object> */
+    bool store_triplet_(const fs::path &path) {
+        if (!fs::exists(path)) {
+            spdlog::error("store_triplet_ function occurs problem, "
+                          "`triplet` directory cannot be created");
+            return false;
+        }
+
+        std::vector<std::future<bool>> task_list;
+        task_list.reserve(storage_.size());
+
+        for (uint32_t pid = 1; pid <= predicate_size_; ++pid) {
+            task_list.emplace_back(std::async(std::launch::async,
+                                              &DatabaseBuilder::Impl::store_triplet_with_pid_,
+                                              this,
+                                              path/fs::path(std::to_string(pid)),
+                                              pid));
+        }
+
+        for (std::future<bool> &task : task_list) {
+            task.get();
+        }
+
+        return true;
+    }
+
+    bool store_triplet_with_pid_(const fs::path &path, const uint32_t &pid) {
+        fs::ofstream out(path, fs::ofstream::out | fs::ofstream::binary);
+        if (out.is_open()) {
+            for (const auto &so : storage_[pid]) {
+                std::string item = std::to_string(so.first) + " " +
+                                   std::to_string(so.second) + "\n";
+                out.write(item.c_str(), item.size());
+            }
+            out.close();
+            return true;
+        } else {
+            spdlog::error("store_triplet_ function occurs problem, "
+                          "`{}` cannot be written.", path.string());
+            return false;
+        }
+    }
+
+    /* store the predicate -> <subject, object> */
+    bool load_triplet_(const fs::path &path, const uint32_t &predicate_size) {
+        if (!fs::exists(path)) {
+            spdlog::error("load_triplet_ function occurs problem, "
+                          "`triplet` directory cannot be created");
+            return false;
+        }
+
+        storage_.clear();
+        storage_.reserve(static_cast<size_t>(predicate_size * 0.75));
+
+        for (uint32_t pid = 1; pid <= predicate_size; ++pid) {
+            fs::path child_path = path/fs::path(std::to_string(pid));
+
+            fs::ifstream in(child_path, fs::ifstream::in | fs::ifstream::binary);
+            if (in.is_open()) {
+                while (!in.eof()) {
+                    uint32_t sid, oid;
+                    in >> sid >> oid;
+                    storage_[pid].insert({sid, oid});
+                }
+                in.close();
+            } else {
+                spdlog::error("load_triplet_ function occurs problem, "
+                              "`{}` cannot be read.", child_path.string());
+                return false;
             }
 
-            qualified_so.emplace_back( std::move(item) );
         }
-    });
-    return qualified_so;
+
+        return true;
+    }
+
+private:
+    std::string db_name_;
+    uint32_t predicate_size_;
+    uint32_t entity_size_;
+    size_t triplet_size_;
+    std::unordered_map<std::string, uint32_t> so2id_;
+    std::unordered_map<std::string, uint32_t> p2id_;
+    std::vector<std::string> id2so_;
+    std::vector<std::string> id2p_;
+
+    std::unordered_map<uint32_t, so_pair_list> storage_;
+};
+
+
+DatabaseBuilder::DatabaseBuilder()
+    : impl_(new DatabaseBuilder::Impl()) {}
+
+DatabaseBuilder::~DatabaseBuilder() {
+    if (opt_ != nullptr) {
+        opt_->unload();
+        delete opt_;
+    }
+    delete impl_;
 }
 
-std::string Database::getSOByID(const uint64_t& so_id) const {
-    return id2so_[so_id];
+DatabaseBuilder::Option *DatabaseBuilder::create(const std::string &db_name, const std::string &data_file) {
+    auto impl = impl_->create(db_name, data_file);
+    this->opt_ = new DatabaseBuilder::Option(impl);
+    return this->opt_;
 }
 
+DatabaseBuilder::Option *DatabaseBuilder::load(const std::string &db_name) {
+    auto impl = impl_->load(db_name);
+    this->opt_ = new DatabaseBuilder::Option(impl);
+    return this->opt_;
+}
+
+bool DatabaseBuilder::Option::save() {
+    return impl_->save();
+}
+
+bool DatabaseBuilder::Option::save(const std::string &db_name) {
+    return impl_->save(db_name);
+}
+
+
+void DatabaseBuilder::Option::unload() {
+    return impl_->unload();
+}
+
+bool DatabaseBuilder::Option::insert(const std::string &s, const std::string &p, const std::string &o) {
+    return impl_->insert(s, p, o);
+}
+
+}

@@ -1,65 +1,68 @@
-//
-// Created by InnoFang on 2021/6/19.
-//
+/*
+ * @FileName   : database_builder.hpp
+ * @CreateAt   : 2021/6/19
+ * @Author     : Inno Fang
+ * @Email      : innofang@yeah.net
+ * @Description: Database build and operate class,
+ *               class `DatabaseBuilder::Impl` contains the details of all implementation,
+ *               class `DatabaseBuilder` can `create` or `load` database instance,
+ *               class `DatabaseBuilder::Option` contains the common operations about Database,
+ *               such as 'save', 'unload', 'insert', etc.
+ *               Note that only use `create` or `load` to get the `DatabaseBuilder::Option` instance firstly
+ *               can access to call the methods of `DatabaseBuilder::Options`, which is a little bit similar with
+ *               Builder Pattern to create and access the instance, the purpose of this is to ensure
+ *               that database instance existed and operational when the user operates the database.
+ */
 
-#ifndef RETRIEVE_SYSTEM_DATABASE_H
-#define RETRIEVE_SYSTEM_DATABASE_H
+#ifndef RETRIEVE_SYSTEM_DATABASE_BUILDER_HPP
+#define RETRIEVE_SYSTEM_DATABASE_BUILDER_HPP
 
-#include <list>
-#include <cmath>
-#include <tuple>
-#include <future>
 #include <string>
-#include <utility>
-#include <cstdlib>
-#include <fstream>
-#include <iostream>
-#include <algorithm>
-#include <unordered_map>
-#include <boost/filesystem.hpp>
+#include <memory>
 
-#include "common/triplet.hpp"
+namespace inno {
 
-namespace fs = boost::filesystem;
+class DatabaseBuilder {
+private:
+    class Impl;
 
-class Database {
 public:
-    explicit Database(const std::string &dbname);
-    ~Database();
-    void create(const std::string &datafile) ;
-    bool store();
-    bool load();
-    void hexManipulation();
-    int calcHexLength(size_t length);
-    void generatePSO();
-    std::tuple<uint64_t, uint64_t> getVarPSOAndMask(const gPSO::triplet &triplet);
-    std::vector<std::unordered_map<std::string, uint64_t>> getQualifiedSOList(const gPSO::triplet &query_triplet);
-    std::string getSOByID(const uint64_t &so_id) const;
+    class Option;
+
+public:
+    DatabaseBuilder();
+    ~DatabaseBuilder();
+
+    /* create RDF database called @db_name from @data_file */
+    DatabaseBuilder::Option *create(const std::string &db_name, const std::string &data_file);
+
+    /* load a RDF database named @db_name */
+    DatabaseBuilder::Option *load(const std::string &db_name);
+
+public:
+    class Option {
+    public:
+        explicit Option(Impl* impl) : impl_(impl) {}
+        ~Option() = default;
+
+        /* save the database data */
+        bool save();
+        bool save(const std::string &db_name);
+
+        /* unload the database */
+        void unload();
+
+        /* insert RDF raw triplet, which is expressed as <s, p, o> */
+        bool insert(const std::string &s, const std::string &p, const std::string &o);
+
+    private:
+        Impl *impl_;
+    };
 
 private:
-    fs::path db_path_;
-    fs::path info_path_;
-    fs::path pid_path_;
-    fs::path soid_path_;
-    fs::path pso_path_;
-    std::string dbname_;
-    std::string datafile_;
-    int p_hex_len_;
-    int so_hex_len_;
-    size_t triple_size_;
-    size_t p_size_;
-    size_t so_size_;
-    uint64_t p_mask_;
-    uint64_t s_mask_;
-    uint64_t o_mask_;
-    std::unordered_map<std::string, uint64_t> so2id_;
-    std::unordered_map<std::string, uint64_t> p2id_;
-    std::vector<int> p_indices_;
-    std::vector<int> p_range_;
-    std::vector<std::string> id2so_;
-    std::vector<std::string> id2p_;
-    std::vector<uint64_t> pso_;
-    std::list<gPSO::triplet> triples_;
+    Option *opt_;
+    Impl *impl_;
 };
 
-#endif //RETRIEVE_SYSTEM_DATABASE_H
+}
+#endif //RETRIEVE_SYSTEM_DATABASE_BUILDER_HPP

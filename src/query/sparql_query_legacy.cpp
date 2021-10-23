@@ -2,7 +2,7 @@
 // Created by InnoFang on 2021/6/30.
 //
 
-#include "query/sparql_query.hpp"
+#include "query/_sparql_query.hpp"
 #include <iostream>
 
 SparqlQuery::SparqlQuery(const std::string& dbname): psoDB_(dbname), UsedTime(0) {
