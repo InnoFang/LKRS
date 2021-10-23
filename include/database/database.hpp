@@ -1,5 +1,5 @@
 /*
- * @FileName   : database_builder.hpp
+ * @FileName   : database.hpp
  * @CreateAt   : 2021/6/19
  * @Author     : Inno Fang
  * @Email      : innofang@yeah.net
@@ -14,8 +14,8 @@
  *               that database instance existed and operational when the user operates the database.
  */
 
-#ifndef RETRIEVE_SYSTEM_DATABASE_BUILDER_HPP
-#define RETRIEVE_SYSTEM_DATABASE_BUILDER_HPP
+#ifndef RETRIEVE_SYSTEM_DATABASE_HPP
+#define RETRIEVE_SYSTEM_DATABASE_HPP
 
 #include <string>
 #include <memory>
@@ -65,4 +65,4 @@ private:
 };
 
 }
-#endif //RETRIEVE_SYSTEM_DATABASE_BUILDER_HPP
+#endif //RETRIEVE_SYSTEM_DATABASE_HPP
