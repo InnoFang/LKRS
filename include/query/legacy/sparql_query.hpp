@@ -16,7 +16,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "common/triplet.hpp"
-#include "database/database.hpp"
+#include "database/legacy/database.hpp"
 #include "parser/sparql_parser.hpp"
 
 class SparqlQuery {
