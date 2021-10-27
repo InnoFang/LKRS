@@ -9,7 +9,15 @@
 #include <iostream>
 #include <string>
 #include <chrono>
-#include "database/database_builder.hpp"
+
+#define LEGACY
+
+#ifdef LEGACY
+#include "database/legacy/database.hpp"
+#else
+#include "database/database.hpp"
+#endif
+
 
 int main (int argc, char* argv[]) {
     if (argc != 3) {
@@ -21,10 +29,20 @@ int main (int argc, char* argv[]) {
     std::string datafile = argv[2];
     std::cout << dbname << " " << datafile << std::endl;
 
+#ifdef LEGACY
+    Database db(dbname);
+#else
     inno::DatabaseBuilder db;
+#endif
     auto start_time = std::chrono::high_resolution_clock::now();
 
+#ifdef LEGACY
+    db.create(datafile);
+#else
     db.create(dbname, datafile);
+//    auto opt = db.load(dbname);
+//    opt->save(dbname + "_test");
+#endif
 
     auto stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
