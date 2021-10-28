@@ -6,7 +6,6 @@
 #include "parser/legacy/sparql_parser.hpp"
 #include "database/legacy/database.hpp"
 #include "query/legacy/sparql_query.hpp"
-#include "query/sparql_query.hpp"
 
 std::string readSPARQLFromFile(const std::string& filepath) {
     std::ifstream infile(filepath, std::ios::in);
