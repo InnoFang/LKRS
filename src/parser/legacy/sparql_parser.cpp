@@ -3,7 +3,7 @@
 //
 
 #include <iostream>
-#include "parser/sparql_parser.hpp"
+#include "parser/legacy/sparql_parser.hpp"
 
 SparqlParser::SparqlParser() {}
 
