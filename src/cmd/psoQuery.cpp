@@ -3,9 +3,15 @@
 #include <string>
 #include <chrono>
 #include <set>
+
+#ifdef LEGACY
 #include "parser/legacy/sparql_parser.hpp"
 #include "database/legacy/database.hpp"
 #include "query/legacy/sparql_query.hpp"
+#else
+#include "query/sparql_query.hpp"
+#include "parser/sparql_parser.hpp"
+#endif
 
 std::string readSPARQLFromFile(const std::string& filepath) {
     std::ifstream infile(filepath, std::ios::in);

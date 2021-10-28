@@ -3,6 +3,7 @@
 //
 
 #include <iostream>
+
 #include "parser/legacy/sparql_parser.hpp"
 
 SparqlParser::SparqlParser() {}
@@ -80,5 +81,4 @@ bool SparqlParser::isDistinct() {
 uint64_t SparqlParser::mapTripletIdBy(gPSO::triplet &triplet_) {
     return triple2queryId[triplet_];
 }
-
 
