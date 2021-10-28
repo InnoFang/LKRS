@@ -3,8 +3,9 @@
 #include <string>
 #include <chrono>
 #include <set>
-#include "parser/sparql_parser.hpp"
-#include "database/database.hpp"
+#include "parser/legacy/sparql_parser.hpp"
+#include "database/legacy/database.hpp"
+#include "query/legacy/sparql_query.hpp"
 #include "query/sparql_query.hpp"
 
 std::string readSPARQLFromFile(const std::string& filepath) {
