@@ -1,6 +1,7 @@
 set(THIS database)
 
-file(GLOB SOURCE_FILES  *.cpp)
-source_group("Source" FILES ${SOURCE_FILES})
+set(SOURCE_FILES
+        database.cpp
+        legacy/database.cpp)
 
 add_library(${THIS} STATIC ${SOURCE_FILES})
