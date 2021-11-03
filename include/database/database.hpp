@@ -17,8 +17,12 @@
 #ifndef RETRIEVE_SYSTEM_DATABASE_HPP
 #define RETRIEVE_SYSTEM_DATABASE_HPP
 
+#include <set>
 #include <string>
 #include <memory>
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace inno {
 
@@ -42,7 +46,7 @@ public:
 public:
     class Option {
     public:
-        explicit Option(Impl* impl) : impl_(impl) {}
+        explicit Option(Impl *impl): impl_(impl) {}
         ~Option() = default;
 
         /* save the database data */
@@ -53,7 +57,31 @@ public:
         void unload();
 
         /* insert RDF raw triplet, which is expressed as <s, p, o> */
-        bool insert(const std::string &s, const std::string &p, const std::string &o);
+        bool insert(const std::string &subject, const std::string &predicate, const std::string &object);
+
+        /* get pid corresponding to predicate */
+        uint32_t getPredicateId(const std::string &predicate);
+        uint32_t getPredicateId(const std::string &predicate) const;
+
+        /* get entity id corresponding to entity (subject and object) */
+        uint32_t getEntityId(const std::string &entity);
+        uint32_t getEntityId(const std::string &entity) const;
+
+        std::string getEntityById(uint32_t entity_id);
+        std::string getEntityById(uint32_t entity_id) const;
+
+        /* get the statistics of pid corresponding to predicate */
+        uint32_t getPredicateStatistic(const std::string &predicate) const;
+        uint32_t getPredicateStatistic(const std::string &predicate);
+
+        /* For querying */
+        std::unordered_set<uint32_t> getSByP(const uint32_t &pid);
+        std::unordered_set<uint32_t> getOByP(const uint32_t &pid);
+
+        std::unordered_multimap<uint32_t, uint32_t> getS2OByP(const uint32_t &pid);
+        std::unordered_multimap<uint32_t, uint32_t> getO2SByP(const uint32_t &pid);
+
+        std::set<std::pair<uint32_t, uint32_t>> getSOByP(const uint32_t &pid);
 
     private:
         Impl *impl_;
@@ -64,5 +92,6 @@ private:
     Impl *impl_;
 };
 
-}
+} // namespace inno
+
 #endif //RETRIEVE_SYSTEM_DATABASE_HPP
