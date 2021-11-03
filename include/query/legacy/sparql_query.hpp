@@ -17,7 +17,7 @@
 #include <unordered_set>
 #include "common/triplet.hpp"
 #include "database/legacy/database.hpp"
-#include "parser/sparql_parser.hpp"
+#include "parser/legacy/sparql_parser.hpp"
 
 class SparqlQuery {
 public:
