@@ -191,6 +191,8 @@ public:
     }
 
     uint32_t getEntityId(const std::string &so) const {
+//        spdlog::info("entity: {}", id2so_[780261]);
+//        spdlog::info("entity: {}", so);
        return so2id_.at(so);
     }
 
@@ -326,7 +328,9 @@ private:
             for (size_t i = 1; i <= predicate_size_; ++ i) {
                 uint32_t pid;
                 std::string predicate;
-                in >> pid >> predicate;
+                in >> pid;
+                in.ignore();
+                std::getline(in, predicate);
                 id2p_[pid] = predicate;
                 p2id_[predicate] = pid;
             }
@@ -370,7 +374,9 @@ private:
             for (size_t i = 1; i <= entity_size_; ++ i) {
                 uint32_t soid;
                 std::string entity;
-                in >> soid >> entity;
+                in >> soid;
+                in.ignore();
+                std::getline(in, entity);
                 id2so_[soid] = entity;
                 so2id_[entity] = soid;
             }
