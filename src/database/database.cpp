@@ -94,7 +94,7 @@ public:
     bool save(const std::string &db_name) {
         fs::ofstream::sync_with_stdio(false);
 
-        fs::path db_path = fs::current_path().parent_path().append(db_name + ".db");
+        fs::path db_path = fs::current_path().append(db_name + ".db");
         fs::path info_path("info");
         fs::path id_predicates_path("id_predicates");
         fs::path id_entities_path("id_entities");
@@ -140,7 +140,7 @@ public:
 
         fs::ifstream::sync_with_stdio(false);
 
-        fs::path db_path = fs::current_path().parent_path().append(db_name + ".db");
+        fs::path db_path = fs::current_path().append(db_name + ".db");
         fs::path info_path("info");
         fs::path id_predicates_path("id_predicates");
         fs::path id_entities_path("id_entities");
