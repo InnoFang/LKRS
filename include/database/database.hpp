@@ -38,16 +38,16 @@ public:
     ~DatabaseBuilder();
 
     /* create RDF database called @db_name from @data_file */
-    DatabaseBuilder::Option *create(const std::string &db_name, const std::string &data_file);
+    static std::shared_ptr<DatabaseBuilder::Option> Create(const std::string &db_name, const std::string &data_file);
 
     /* load a RDF database named @db_name */
-    DatabaseBuilder::Option *load(const std::string &db_name);
+    static std::shared_ptr<DatabaseBuilder::Option> Load(const std::string &db_name);
 
 public:
     class Option {
     public:
-        explicit Option(Impl *impl): impl_(impl) {}
-        ~Option() = default;
+        explicit Option(std::shared_ptr<Impl> impl);
+        ~Option();
 
         /* save the database data */
         bool save();
@@ -75,8 +75,8 @@ public:
         uint32_t getPredicateStatistic(const std::string &predicate);
 
         /* For querying */
-        std::unordered_set<uint32_t> getSByP(const uint32_t &pid);
-        std::unordered_set<uint32_t> getOByP(const uint32_t &pid);
+        std::unordered_set<uint32_t> getSByPO(const uint32_t &pid, const uint32_t &oid);
+        std::unordered_set<uint32_t> getOBySP(const uint32_t &sid, const uint32_t &pid);
 
         std::unordered_multimap<uint32_t, uint32_t> getS2OByP(const uint32_t &pid);
         std::unordered_multimap<uint32_t, uint32_t> getO2SByP(const uint32_t &pid);
@@ -84,12 +84,8 @@ public:
         std::set<std::pair<uint32_t, uint32_t>> getSOByP(const uint32_t &pid);
 
     private:
-        Impl *impl_;
+        std::shared_ptr<Impl> impl_;
     };
-
-private:
-    Option *opt_;
-    Impl *impl_;
 };
 
 } // namespace inno

@@ -33,7 +33,7 @@ public:
     Impl()  { initialize_(); }
     ~Impl() { unload(); }
 
-    DatabaseBuilder::Impl *create(const std::string &db_name, const std::string &data_file) {
+    void create(const std::string &db_name, const std::string &data_file) {
         db_name_ = db_name;
 
         std::ifstream infile(data_file, std::ifstream::binary);
@@ -50,10 +50,10 @@ public:
             }
 
             save();
-            return this;
+//            return this;
         } else {
             spdlog::error("Cannot open RDF data file, problem occurs by path '{}'", data_file);
-            return nullptr;
+//            return nullptr;
         }
     }
 
@@ -85,7 +85,7 @@ public:
     bool save() {
         if (db_name_.empty()) {
             spdlog::info("Save Failed! Haven't specified a database yet, "
-                         "you should call create or load before this operation.");
+                         "you should call Create or Load before this operation.");
             return false;
         }
         return save(db_name_);
@@ -135,7 +135,7 @@ public:
         return true;
     }
 
-    DatabaseBuilder::Impl *load(const std::string &db_name) {
+    void load(const std::string &db_name) {
         db_name_ = db_name;
 
         fs::ifstream::sync_with_stdio(false);
@@ -170,7 +170,7 @@ public:
         soid_load_task.get();
         triplet_load_task.get();
 
-        return this;
+//        return this;
     }
 
     void unload() {
@@ -202,20 +202,24 @@ public:
         return id2so_.at(entity_id);
     }
 
-    std::unordered_set<uint32_t> getSByP(const uint32_t &pid) {
+    std::unordered_set<uint32_t> getSByPO(const uint32_t &pid, const uint32_t &oid) {
         std::unordered_set<uint32_t> ret;
         ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
         for (const auto &item : so_storage_[pid]) {
-            ret.insert(item.first);
+            if (item.second == oid) {
+                ret.insert(item.first);
+            }
         }
         return ret;
     }
 
-    std::unordered_set<uint32_t> getOByP(const uint32_t &pid) {
+    std::unordered_set<uint32_t> getOBySP(const uint32_t &sid, const uint32_t &pid) {
         std::unordered_set<uint32_t> ret;
         ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
         for (const auto &item : so_storage_[pid]) {
-            ret.insert(item.second);
+            if (item.first == sid) {
+                ret.insert(item.second);
+            }
         }
         return ret;
     }
@@ -468,29 +472,25 @@ private:
 //    std::unordered_map<uint32_t, entity_pair_set> os_storage_;
 };
 
+DatabaseBuilder::DatabaseBuilder() = default;
 
-DatabaseBuilder::DatabaseBuilder()
-    : impl_(new DatabaseBuilder::Impl()) {}
+DatabaseBuilder::~DatabaseBuilder() = default;
 
-DatabaseBuilder::~DatabaseBuilder() {
-    if (opt_ != nullptr) {
-        opt_->unload();
-        delete opt_;
-    }
-    delete impl_;
+std::shared_ptr<DatabaseBuilder::Option> DatabaseBuilder::Create(const std::string &db_name, const std::string &data_file) {
+    std::shared_ptr<Impl> impl(new Impl());
+    impl->create(db_name, data_file);
+    return std::make_shared<DatabaseBuilder::Option>(impl);
 }
 
-DatabaseBuilder::Option *DatabaseBuilder::create(const std::string &db_name, const std::string &data_file) {
-    auto impl = impl_->create(db_name, data_file);
-    this->opt_ = new DatabaseBuilder::Option(impl);
-    return this->opt_;
+std::shared_ptr<DatabaseBuilder::Option> DatabaseBuilder::Load(const std::string &db_name) {
+    std::shared_ptr<Impl> impl(new Impl());
+    impl->load(db_name);
+    return std::make_shared<DatabaseBuilder::Option>(impl);
 }
 
-DatabaseBuilder::Option *DatabaseBuilder::load(const std::string &db_name) {
-    auto impl = impl_->load(db_name);
-    this->opt_ = new DatabaseBuilder::Option(impl);
-    return this->opt_;
-}
+DatabaseBuilder::Option::Option(std::shared_ptr<Impl> impl) : impl_(std::move(impl)) {}
+
+DatabaseBuilder::Option::~Option() = default;
 
 bool DatabaseBuilder::Option::save() {
     return impl_->save();
@@ -499,7 +499,6 @@ bool DatabaseBuilder::Option::save() {
 bool DatabaseBuilder::Option::save(const std::string &db_name) {
     return impl_->save(db_name);
 }
-
 
 void DatabaseBuilder::Option::unload() {
     return impl_->unload();
@@ -542,12 +541,12 @@ uint32_t DatabaseBuilder::Option::getPredicateStatistic(const std::string &p) {
     return impl_->getPredicateStatistic(p);
 }
 
-std::unordered_set<uint32_t> DatabaseBuilder::Option::getSByP(const uint32_t &pid) {
-    return impl_->getSByP(pid);
+std::unordered_set<uint32_t> DatabaseBuilder::Option::getSByPO(const uint32_t &pid, const uint32_t &oid) {
+    return impl_->getSByPO(pid, oid);
 }
 
-std::unordered_set<uint32_t> DatabaseBuilder::Option::getOByP(const uint32_t &pid) {
-    return impl_->getOByP(pid);
+std::unordered_set<uint32_t> DatabaseBuilder::Option::getOBySP(const uint32_t &sid, const uint32_t &pid) {
+    return impl_->getOBySP(sid, pid);
 }
 
 std::unordered_multimap<uint32_t, uint32_t> DatabaseBuilder::Option::getS2OByP(const uint32_t &pid) {
@@ -561,5 +560,6 @@ std::unordered_multimap<uint32_t, uint32_t> DatabaseBuilder::Option::getO2SByP(c
 std::set<std::pair<uint32_t, uint32_t>> DatabaseBuilder::Option::getSOByP(const uint32_t &pid) {
     return impl_->getSOByP(pid);
 }
+
 
 } // namespace inno
