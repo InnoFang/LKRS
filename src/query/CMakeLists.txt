@@ -1,6 +1,7 @@
 set(THIS query)
 
-file(GLOB SOURCE_FILES  *.cpp)
-source_group("Source" FILES ${SOURCE_FILES})
+set(SOURCE_FILES
+        sparql_query.cpp
+        legacy/sparql_query.cpp)
 
 add_library(${THIS} STATIC ${SOURCE_FILES})
