@@ -19,6 +19,7 @@
 #include <boost/filesystem.hpp>
 
 #include "common/skip_list.hpp"
+#include "common/utils.hpp"
 
 namespace inno {
 
@@ -78,7 +79,7 @@ public:
             id2so_.emplace_back(o);
         }
 
-        so_storage_[p2id_[p]].insert({so2id_[s], so2id_[o]});
+        predicate_indexed_storage_[p2id_[p]].insert({so2id_[s], so2id_[o]});
         return true;
     }
 
@@ -169,6 +170,7 @@ public:
         pid_load_task.get();
         soid_load_task.get();
         triplet_load_task.get();
+//        load_triplet_(db_path/triplet_path, predicate_size_);
 
 //        return this;
     }
@@ -183,7 +185,7 @@ public:
         p2id_.clear();
         id2so_.clear();
         id2p_.clear();
-        so_storage_.clear();
+        predicate_indexed_storage_.clear();
     }
 
     uint32_t getPredicateId(const std::string &p) const {
@@ -207,7 +209,7 @@ public:
     std::unordered_set<uint32_t> getSByPO(const uint32_t &pid, const uint32_t &oid) {
         std::unordered_set<uint32_t> ret;
         ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
-        for (const auto &item : so_storage_[pid]) {
+        for (const auto &item : predicate_indexed_storage_[pid]) {
             if (item.second == oid) {
                 ret.insert(item.first);
             }
@@ -218,7 +220,7 @@ public:
     std::unordered_set<uint32_t> getOBySP(const uint32_t &sid, const uint32_t &pid) {
         std::unordered_set<uint32_t> ret;
         ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
-        for (const auto &item : so_storage_[pid]) {
+        for (const auto &item : predicate_indexed_storage_[pid]) {
             if (item.first == sid) {
                 ret.insert(item.second);
             }
@@ -229,7 +231,7 @@ public:
     std::unordered_multimap<uint32_t, uint32_t> getS2OByP(const uint32_t &pid) {
         std::unordered_multimap<uint32_t, uint32_t> ret;
         ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
-        for (const auto &item : so_storage_[pid]) {
+        for (const auto &item : predicate_indexed_storage_[pid]) {
             ret.emplace(item.first, item.second);
         }
         return ret;
@@ -238,14 +240,14 @@ public:
     std::unordered_multimap<uint32_t, uint32_t> getO2SByP(const uint32_t &pid) {
         std::unordered_multimap<uint32_t, uint32_t> ret;
         ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
-        for (const auto &item : so_storage_[pid]) {
+        for (const auto &item : predicate_indexed_storage_[pid]) {
             ret.emplace(item.second, item.first);
         }
         return ret;
     }
 
     std::set<std::pair<uint32_t, uint32_t>> getSOByP(const uint32_t &pid) {
-        return so_storage_[pid];
+        return predicate_indexed_storage_[pid];
     }
 
 private:
@@ -281,6 +283,8 @@ private:
     /* load database basic information */
     bool load_basic_info(const fs::path &path) {
         fs::ifstream in(path, fs::ifstream::in | fs::ifstream::binary);
+        fs::ifstream::sync_with_stdio(false);
+        in.tie(0);
         if (in.is_open()) {
             in >> triplet_size_
                >> predicate_size_
@@ -324,6 +328,8 @@ private:
         id2p_.resize(predicate_size + 1);
 
         fs::ifstream in(path, fs::ifstream::in | fs::ifstream::binary);
+        fs::ifstream::sync_with_stdio(false);
+        in.tie(0);
         if (in.is_open()) {
             for (size_t i = 1; i <= predicate_size_; ++ i) {
                 uint32_t pid;
@@ -370,6 +376,8 @@ private:
         id2so_.resize(entity_size + 1);
 
         fs::ifstream in(path, fs::ifstream::in | fs::ifstream::binary);
+        fs::ifstream::sync_with_stdio(false);
+        in.tie(0);
         if (in.is_open()) {
             for (size_t i = 1; i <= entity_size_; ++ i) {
                 uint32_t soid;
@@ -398,14 +406,13 @@ private:
         }
 
         std::vector<std::future<bool>> task_list;
-        task_list.reserve(so_storage_.size());
+        task_list.reserve(predicate_indexed_storage_.size());
 
         for (uint32_t pid = 1; pid <= predicate_size_; ++pid) {
-            task_list.emplace_back(std::async(std::launch::async,
+            task_list.push_back(std::move(std::async(std::launch::async,
                                               &DatabaseBuilder::Impl::store_triplet_with_pid_,
                                               this,
-                                              path/fs::path(std::to_string(pid)),
-                                              pid));
+                                              path, pid)));
         }
 
         for (std::future<bool> &task : task_list) {
@@ -416,9 +423,13 @@ private:
     }
 
     bool store_triplet_with_pid_(const fs::path &path, const uint32_t &pid) {
-        fs::ofstream out(path, fs::ofstream::out | fs::ofstream::binary);
+        fs::path child_path = path/fs::path(std::to_string(pid));
+        fs::ofstream out(child_path, fs::ofstream::out | fs::ofstream::binary);
+        fs::ofstream::sync_with_stdio(false);
+        out.tie(nullptr);
+
         if (out.is_open()) {
-            for (const auto &so : so_storage_[pid]) {
+            for (const auto &so : predicate_indexed_storage_[pid]) {
                 std::string item = std::to_string(so.first) + " " +
                                    std::to_string(so.second) + "\n";
                 out.write(item.c_str(), item.size());
@@ -440,18 +451,20 @@ private:
             return false;
         }
 
-        so_storage_.clear();
-        so_storage_.reserve(static_cast<size_t>(predicate_size * 0.75));
+        std::vector<std::future<bool>> task_list;
+        task_list.reserve(predicate_size);
 
         for (uint32_t pid = 1; pid <= predicate_size; ++pid) {
             fs::path child_path = path/fs::path(std::to_string(pid));
-
             fs::ifstream in(child_path, fs::ifstream::in | fs::ifstream::binary);
+            fs::ifstream::sync_with_stdio(false);
+            in.tie(0);
+
             if (in.is_open()) {
                 while (!in.eof()) {
                     uint32_t sid, oid;
                     in >> sid >> oid;
-                    so_storage_[pid].insert({sid, oid});
+                    predicate_indexed_storage_[pid].insert({sid, oid});
                 }
                 in.close();
             } else {
@@ -459,8 +472,39 @@ private:
                               "`{}` cannot be read.", child_path.string());
                 return false;
             }
+//            task_list.push_back(std::move(std::async(std::launch::async,
+//                                              &DatabaseBuilder::Impl::load_triplet_with_pid_,
+//                                              this,
+//                                              path, pid)));
         }
+
+//        predicate_indexed_storage_.clear();
+//        predicate_indexed_storage_.reserve(static_cast<size_t>(predicate_size * 0.75));
+//        for (std::future<bool> &task : task_list) {
+//            task.get();
+//        }
+
         return true;
+    }
+
+    bool load_triplet_with_pid_(const fs::path &path, const uint32_t &pid) {
+        fs::path child_path = path/fs::path(std::to_string(pid));
+        fs::ifstream in(child_path, fs::ifstream::in | fs::ifstream::binary);
+        entity_pair_set pair_set;
+        if (in.is_open()) {
+            while (!in.eof()) {
+                uint32_t sid, oid;
+                in >> sid >> oid;
+                pair_set.emplace(sid, oid);
+            }
+            in.close();
+            predicate_indexed_storage_.emplace(pid, std::move(pair_set));
+            return true;
+        } else {
+            spdlog::error("load_triplet_with_pid_ function occurs problem, "
+                          "`{}` cannot be read.", child_path.string());
+            return false;
+        }
     }
 
 private:
@@ -474,8 +518,7 @@ private:
     std::vector<std::string> id2p_;
     std::vector<uint32_t> predicate_statistic_;
 
-    std::unordered_map<uint32_t, entity_pair_set> so_storage_;
-//    std::unordered_map<uint32_t, entity_pair_set> os_storage_;
+    std::unordered_map<uint32_t, entity_pair_set> predicate_indexed_storage_;
 };
 
 DatabaseBuilder::DatabaseBuilder() = default;
