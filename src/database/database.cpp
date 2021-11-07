@@ -18,9 +18,6 @@
 #include <spdlog/spdlog.h>
 #include <boost/filesystem.hpp>
 
-#include "common/skip_list.hpp"
-#include "common/utils.hpp"
-
 namespace inno {
 
 namespace fs = boost::filesystem;
@@ -31,7 +28,12 @@ private:
     using entity_pair_set = std::set<std::pair<uint32_t, uint32_t>>;
 
 public:
-    Impl()  { initialize_(); }
+    Impl() : info_path_("info")
+           , id_predicates_path_("id_predicates")
+           , id_entities_path_("id_entities")
+           , triplet_path_("triplet")
+           { initialize_(); }
+
     ~Impl() { unload(); }
 
     void create(const std::string &db_name, const std::string &data_file) {
@@ -96,37 +98,33 @@ public:
         fs::ofstream::sync_with_stdio(false);
 
         fs::path db_path = fs::current_path().append(db_name + ".db");
-        fs::path info_path("info");
-        fs::path id_predicates_path("id_predicates");
-        fs::path id_entities_path("id_entities");
-        fs::path triplet_path("triplet");
 
         if (!fs::exists(db_path)) {
             fs::create_directories(db_path);
         }
-        if (!fs::exists(db_path/triplet_path)) {
-            fs::create_directories(db_path/triplet_path);
+        if (!fs::exists(db_path / triplet_path_)) {
+            fs::create_directories(db_path / triplet_path_);
         }
 
         auto info_store_task = std::async(std::launch::async,
                                           &DatabaseBuilder::Impl::store_basic_info,
                                           this,
-                                          db_path/info_path);
+                                          db_path / info_path_);
 
         auto pid_store_task = std::async(std::launch::async,
                                           &DatabaseBuilder::Impl::store_predicate_ids_,
                                           this,
-                                          db_path/id_predicates_path);
+                                         db_path / id_predicates_path_);
 
         auto soid_store_task = std::async(std::launch::async,
                                          &DatabaseBuilder::Impl::store_entity_ids_,
                                          this,
-                                         db_path/id_entities_path);
+                                          db_path / id_entities_path_);
 
         auto triplet_store_task = std::async(std::launch::async,
                                          &DatabaseBuilder::Impl::store_triplet_,
                                          this,
-                                         db_path/triplet_path);
+                                             db_path / triplet_path_);
 
         triplet_store_task.get();
         info_store_task.get();
@@ -137,45 +135,77 @@ public:
     }
 
     void load(const std::string &db_name) {
+        fs::path db_path = fs::current_path().append(db_name + ".db");
+        if (!fs::exists(db_path)) {
+           return;
+        }
         db_name_ = db_name;
 
-        fs::ifstream::sync_with_stdio(false);
-
-        fs::path db_path = fs::current_path().append(db_name + ".db");
-        fs::path info_path("info");
-        fs::path id_predicates_path("id_predicates");
-        fs::path id_entities_path("id_entities");
-        fs::path triplet_path("triplet");
-
-        load_basic_info(db_path/info_path);
+        load_basic_info(db_path / info_path_);
 
         auto pid_load_task = std::async(std::launch::async,
                                          &DatabaseBuilder::Impl::load_predicate_ids_,
                                          this,
-                                         db_path/id_predicates_path,
+                                         db_path / id_predicates_path_,
                                          predicate_size_);
 
         auto soid_load_task = std::async(std::launch::async,
                                           &DatabaseBuilder::Impl::load_entity_ids_,
                                           this,
-                                          db_path/id_entities_path,
+                                          db_path / id_entities_path_,
                                           entity_size_);
 
         auto triplet_load_task = std::async(std::launch::async,
-                                             &DatabaseBuilder::Impl::load_triplet_,
+                                             &DatabaseBuilder::Impl::load_all_triplet_,
                                              this,
-                                             db_path/triplet_path,
+                                             db_path / triplet_path_,
                                              predicate_size_);
 
         pid_load_task.get();
         soid_load_task.get();
         triplet_load_task.get();
-//        load_triplet_(db_path/triplet_path, predicate_size_);
-
-//        return this;
     }
 
-    void unload() {
+    void load(const std::string &db_name, const std::vector<std::string> &predicate_indexed_list) {
+        fs::path db_path = fs::current_path().append(db_name + ".db");
+        if (!fs::exists(db_path)) {
+            return;
+        }
+        db_name_ = db_name;
+
+        load_basic_info(db_path / info_path_);
+
+        auto pid_load_task = std::async(std::launch::async,
+                                        &DatabaseBuilder::Impl::load_predicate_ids_,
+                                        this,
+                                        db_path / id_predicates_path_,
+                                        predicate_size_);
+
+        auto soid_load_task = std::async(std::launch::async,
+                                         &DatabaseBuilder::Impl::load_entity_ids_,
+                                         this,
+                                         db_path / id_entities_path_,
+                                         entity_size_);
+
+        pid_load_task.get();
+        soid_load_task.get();
+
+        std::vector<uint32_t> pid_list;
+        pid_list.reserve(predicate_indexed_list.size());
+        for (const auto &p : predicate_indexed_list) {
+            uint32_t pid = p2id_.at(p);
+            pid_list.emplace_back(pid);
+        }
+
+        auto triplet_load_task = std::async(std::launch::async,
+                                            &DatabaseBuilder::Impl::load_partial_triplet_,
+                                            this,
+                                            db_path / triplet_path_,
+                                            pid_list);
+        triplet_load_task.get();
+    }
+
+        void unload() {
         db_name_.clear();
         predicate_size_ = 0;
         entity_size_ = 0;
@@ -193,8 +223,6 @@ public:
     }
 
     uint32_t getEntityId(const std::string &so) const {
-//        spdlog::info("entity: {}", id2so_[780261]);
-//        spdlog::info("entity: {}", so);
        return so2id_.at(so);
     }
 
@@ -284,7 +312,7 @@ private:
     bool load_basic_info(const fs::path &path) {
         fs::ifstream in(path, fs::ifstream::in | fs::ifstream::binary);
         fs::ifstream::sync_with_stdio(false);
-        in.tie(0);
+        in.tie(nullptr);
         if (in.is_open()) {
             in >> triplet_size_
                >> predicate_size_
@@ -329,7 +357,7 @@ private:
 
         fs::ifstream in(path, fs::ifstream::in | fs::ifstream::binary);
         fs::ifstream::sync_with_stdio(false);
-        in.tie(0);
+        in.tie(nullptr);
         if (in.is_open()) {
             for (size_t i = 1; i <= predicate_size_; ++ i) {
                 uint32_t pid;
@@ -377,7 +405,7 @@ private:
 
         fs::ifstream in(path, fs::ifstream::in | fs::ifstream::binary);
         fs::ifstream::sync_with_stdio(false);
-        in.tie(0);
+        in.tie(nullptr);
         if (in.is_open()) {
             for (size_t i = 1; i <= entity_size_; ++ i) {
                 uint32_t soid;
@@ -444,9 +472,9 @@ private:
     }
 
     /* store the predicate -> <subject, object> */
-    bool load_triplet_(const fs::path &path, const uint32_t &predicate_size) {
+    bool load_all_triplet_(const fs::path &path, const uint32_t &predicate_size) {
         if (!fs::exists(path)) {
-            spdlog::error("load_triplet_ function occurs problem, "
+            spdlog::error("load_all_triplet_ function occurs problem, "
                           "`triplet` directory cannot be created");
             return false;
         }
@@ -458,7 +486,7 @@ private:
             fs::path child_path = path/fs::path(std::to_string(pid));
             fs::ifstream in(child_path, fs::ifstream::in | fs::ifstream::binary);
             fs::ifstream::sync_with_stdio(false);
-            in.tie(0);
+            in.tie(nullptr);
 
             if (in.is_open()) {
                 while (!in.eof()) {
@@ -468,7 +496,7 @@ private:
                 }
                 in.close();
             } else {
-                spdlog::error("load_triplet_ function occurs problem, "
+                spdlog::error("load_all_triplet_ function occurs problem, "
                               "`{}` cannot be read.", child_path.string());
                 return false;
             }
@@ -483,6 +511,40 @@ private:
 //        for (std::future<bool> &task : task_list) {
 //            task.get();
 //        }
+
+        return true;
+    }
+
+    /* store the predicate -> <subject, object> */
+    bool load_partial_triplet_(const fs::path &path, const std::vector<uint32_t> &pid_list) {
+        if (!fs::exists(path)) {
+            spdlog::error("load_partial_triplet_ function occurs problem, "
+                          "`triplet` directory cannot be created");
+            return false;
+        }
+
+        std::vector<std::future<bool>> task_list;
+        task_list.reserve(pid_list.size());
+
+        for (const uint32_t &pid: pid_list) {
+            fs::path child_path = path/fs::path(std::to_string(pid));
+            fs::ifstream in(child_path, fs::ifstream::in | fs::ifstream::binary);
+            fs::ifstream::sync_with_stdio(false);
+            in.tie(nullptr);
+
+            if (in.is_open()) {
+                while (!in.eof()) {
+                    uint32_t sid, oid;
+                    in >> sid >> oid;
+                    predicate_indexed_storage_[pid].insert({sid, oid});
+                }
+                in.close();
+            } else {
+                spdlog::error("load_partial_triplet_ function occurs problem, "
+                              "`{}` cannot be read.", child_path.string());
+                return false;
+            }
+        }
 
         return true;
     }
@@ -512,6 +574,10 @@ private:
     uint32_t predicate_size_;
     uint32_t entity_size_;
     size_t triplet_size_;
+    fs::path info_path_;
+    fs::path id_predicates_path_;
+    fs::path id_entities_path_;
+    fs::path triplet_path_;
     std::unordered_map<std::string, uint32_t> so2id_;
     std::unordered_map<std::string, uint32_t> p2id_;
     std::vector<std::string> id2so_;
@@ -525,15 +591,24 @@ DatabaseBuilder::DatabaseBuilder() = default;
 
 DatabaseBuilder::~DatabaseBuilder() = default;
 
-std::shared_ptr<DatabaseBuilder::Option> DatabaseBuilder::Create(const std::string &db_name, const std::string &data_file) {
+std::shared_ptr<DatabaseBuilder::Option>
+DatabaseBuilder::Create(const std::string &db_name, const std::string &data_file) {
     std::shared_ptr<Impl> impl(new Impl());
     impl->create(db_name, data_file);
     return std::make_shared<DatabaseBuilder::Option>(impl);
 }
 
-std::shared_ptr<DatabaseBuilder::Option> DatabaseBuilder::Load(const std::string &db_name) {
+std::shared_ptr<DatabaseBuilder::Option>
+DatabaseBuilder::Load(const std::string &db_name) {
     std::shared_ptr<Impl> impl(new Impl());
     impl->load(db_name);
+    return std::make_shared<DatabaseBuilder::Option>(impl);
+}
+
+std::shared_ptr<DatabaseBuilder::Option>
+DatabaseBuilder::LoadPartial(const std::string &db_name, const SparqlParser &parser) {
+    std::shared_ptr<Impl> impl(new Impl());
+    impl->load(db_name, parser.getPredicateIndexedList());
     return std::make_shared<DatabaseBuilder::Option>(impl);
 }
 
