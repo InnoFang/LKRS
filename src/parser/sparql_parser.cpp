@@ -9,6 +9,7 @@
 #include "parser/sparql_parser.hpp"
 
 #include <regex>
+#include <sstream>
 #include <unordered_map>
 
 #include <spdlog/spdlog.h>
@@ -24,6 +25,7 @@ public:
     std::vector<std::string> query_variables;
     std::vector<Triplet> query_triplets_;
     std::vector<Triplet> insert_triplets_;
+    std::vector<std::string> predicates_indexed_list_;
 
     void parse(const std::string &sparql) {
         std::smatch match;
@@ -63,6 +65,7 @@ private:
             std::istringstream iss(*tokens);
             iss >> s >> p >> o;
             query_triplets_.emplace_back(s, p, o);
+            predicates_indexed_list_.emplace_back(p);
         }
     }
 
@@ -80,7 +83,6 @@ private:
             insert_triplets_.emplace_back(s, p, o);
         }
     }
-
 };
 
 SparqlParser::SparqlParser(): impl_(new Impl()) { }
@@ -99,7 +101,6 @@ std::vector<std::string> SparqlParser::getQueryVariables() const {
     return impl_->query_variables;
 }
 
-
 std::vector<SparqlParser::Triplet> SparqlParser::getQueryTriplets() {
     return impl_->query_triplets_;
 }
@@ -112,12 +113,16 @@ std::vector<SparqlParser::Triplet> SparqlParser::getInsertTriplets() {
     return impl_->insert_triplets_;
 }
 
-std::vector<SparqlParser::Triplet> SparqlParser::getInsertTriplets() const {
-    return impl_->insert_triplets_;
+std::vector<std::string> SparqlParser::getPredicateIndexedList() const {
+    return impl_->predicates_indexed_list_;
 }
 
-uint64_t SparqlParser::mapTripletIdBy(Triplet &triplet_) {
-    return 0;
+std::vector<std::string> SparqlParser::getPredicateIndexedList() {
+    return impl_->predicates_indexed_list_;
+}
+
+std::vector<SparqlParser::Triplet> SparqlParser::getInsertTriplets() const {
+    return impl_->insert_triplets_;
 }
 
 bool SparqlParser::isDistinctQuery() {
