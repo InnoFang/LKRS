@@ -11,8 +11,7 @@
 
 #include <string>
 #include <vector>
-
-#include "common/triplet.hpp"
+#include <memory>
 
 namespace inno {
 
@@ -27,10 +26,12 @@ public:
     std::vector<std::string> getQueryVariables() const;
     std::vector<Triplet> getQueryTriplets();
     std::vector<Triplet> getQueryTriplets() const;
+    std::vector<std::string> getPredicateIndexedList();
+    std::vector<std::string> getPredicateIndexedList() const;
     std::vector<Triplet> getInsertTriplets();
     std::vector<Triplet> getInsertTriplets() const;
-    uint64_t mapTripletIdBy(Triplet &triplet_);
     bool isDistinctQuery();
+
 private:
     class Impl;
     std::shared_ptr<Impl> impl_;
