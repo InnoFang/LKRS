@@ -2,7 +2,7 @@
 // Created by InnoFang on 2021/6/19.
 //
 
-#include "database/legacy/database.hpp"
+#include "database/database.hpp"
 
 Database::Database(const std::string& dbname) : dbname_(dbname) {
     db_path_ = fs::path(__FILE__).parent_path().parent_path().parent_path()
@@ -134,7 +134,7 @@ bool Database::store() {
             infoDataOut << "\n";
             infoDataOut.close();
         } else {
-            std::cerr << "cannot create file: "<< info_path_ << std::endl;
+            std::cerr << "cannot Create file: "<< info_path_ << std::endl;
         }
     };
 
@@ -183,7 +183,7 @@ bool Database::store() {
             }
             psoDataOut.close();
         } else {
-            std::cerr << "cannot create file: "<< pso_path_ << std::endl;
+            std::cerr << "cannot Create file: "<< pso_path_ << std::endl;
         }
     }, std::ref(pso_path_), std::ref(pso_));
 

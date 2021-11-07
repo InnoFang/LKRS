@@ -2,11 +2,11 @@
 // Created by InnoFang on 2021/6/30.
 //
 
-#include "query/legacy/sparql_query.hpp"
+#include "query/sparql_query.hpp"
 #include <iostream>
 
 SparqlQuery::SparqlQuery(const std::string& dbname): psoDB_(dbname), UsedTime(0) {
-    std::cout << "load db: " << dbname << std::endl;
+    std::cout << "Load db: " << dbname << std::endl;
     auto start_time = std::chrono::high_resolution_clock::now();
 
     psoDB_.load();
@@ -14,7 +14,7 @@ SparqlQuery::SparqlQuery(const std::string& dbname): psoDB_(dbname), UsedTime(0)
     auto stop_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
 
-    std::cout << "db load done. ";
+    std::cout << "db Load done. ";
     std::cout << "Used time: " << used_time.count() << " ms. \n" << std::endl;
 }
 
