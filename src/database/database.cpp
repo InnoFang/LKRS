@@ -38,10 +38,18 @@ public:
 
     void create(const std::string &db_name, const std::string &data_file) {
         db_name_ = db_name;
+        insertFromFile(data_file);
+    }
 
+    bool insertFromFile(const std::string &data_file) {
+        if (db_name_.empty()) {
+            spdlog::info("<{}> haven't been specify, choose one to add data.");
+            return false;
+        }
         std::ifstream infile(data_file, std::ifstream::binary);
         std::ifstream::sync_with_stdio(false);
 
+        size_t affect = 0;
         if (infile.is_open()) {
             std::string s, p, o;
             while (infile >> s >> p) {
@@ -49,15 +57,28 @@ public:
                 std::getline(infile, o);
                 for (o.pop_back(); o.back() == ' ' || o.back() == '.'; o.pop_back()) {}
 
-                insert(s, p, o);
+                affect += insert(s, p, o) ? 1 : 0;
             }
 
             save();
-//            return this;
+            spdlog::info("{} triplet(s) have been inserted.", affect);
+            return true;
         } else {
             spdlog::error("Cannot open RDF data file, problem occurs by path '{}'", data_file);
-//            return nullptr;
+            return false;
         }
+    }
+
+    bool insertFromTriplets(const std::vector<std::tuple<std::string, std::string, std::string>> &triplets) {
+        std::string s, p, o;
+        size_t affect = 0;
+        for (const auto &triplet : triplets) {
+            std::tie(s, p, o) = triplet;
+            affect += insert(s, p, o) ? 1 : 0;
+        }
+        save();
+        spdlog::info("{} triplet(s) have been inserted.", affect);
+        return true;
     }
 
     bool insert(const std::string &s, const std::string &p, const std::string &o) {
@@ -137,7 +158,8 @@ public:
     void load(const std::string &db_name) {
         fs::path db_path = fs::current_path().append(db_name + ".db");
         if (!fs::exists(db_path)) {
-           return;
+            spdlog::info("<{}> doesn't exist, create or build it firstly please.", db_path.string());
+            return;
         }
         db_name_ = db_name;
 
@@ -632,6 +654,10 @@ bool DatabaseBuilder::Option::insert(const std::string &s, const std::string &p,
     return impl_->insert(s, p, o);
 }
 
+bool DatabaseBuilder::Option::insert(const std::vector<std::tuple<std::string, std::string, std::string>> &triplets) {
+    return impl_->insertFromTriplets(triplets);
+}
+
 uint32_t DatabaseBuilder::Option::getPredicateId(const std::string &predicate) const {
     return impl_->getPredicateId(predicate);
 }
@@ -660,7 +686,6 @@ std::string DatabaseBuilder::Option::getEntityById(uint32_t entity_id) const {
     return impl_->getEntityById(entity_id);
 }
 
-
 uint32_t DatabaseBuilder::Option::getPredicateStatistic(const std::string &p) {
     return impl_->getPredicateStatistic(p);
 }
@@ -684,6 +709,5 @@ std::unordered_multimap<uint32_t, uint32_t> DatabaseBuilder::Option::getO2SByP(c
 std::set<std::pair<uint32_t, uint32_t>> DatabaseBuilder::Option::getSOByP(const uint32_t &pid) {
     return impl_->getSOByP(pid);
 }
-
 
 } // namespace inno

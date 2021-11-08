@@ -24,6 +24,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "parser/sparql_parser.hpp"
+
 namespace inno {
 
 class DatabaseBuilder {
@@ -42,6 +44,7 @@ public:
 
     /* load a RDF database named @db_name */
     static std::shared_ptr<DatabaseBuilder::Option> Load(const std::string &db_name);
+    static std::shared_ptr<DatabaseBuilder::Option> LoadPartial(const std::string &db_name, const SparqlParser &parser);
 
 public:
     class Option {
@@ -58,6 +61,7 @@ public:
 
         /* insert RDF raw triplet, which is expressed as <s, p, o> */
         bool insert(const std::string &subject, const std::string &predicate, const std::string &object);
+        bool insert(const std::vector<std::tuple<std::string, std::string, std::string>> &triplets);
 
         /* get pid corresponding to predicate */
         uint32_t getPredicateId(const std::string &predicate);
