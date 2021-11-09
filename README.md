@@ -1,3 +1,7 @@
+# PISANO
+
+PISANO, that's **P**redicate-**I**ndexed **S**ubject **AN**d **O**bject
+
 ## build
 
 CLion + conan, install
@@ -32,13 +36,13 @@ Windows
 mkdir build
 cd build
 conan install ..
-cmake ..
+cmake .. 
 cmake --build . --config Release
 ```
 
 Docker 
 
 ```shell
-docker build --tag system:0.1 .
-docker run -it --name system --mount type=bind,source="$(pwd)"/data,target=/retrieve-system/share system:0.1
+docker build --tag pisano:0.1 .
+docker run -it --name system --mount type=bind,source="$(pwd)"/data,target=/retrieve-system/share pisano:0.2
 ```
