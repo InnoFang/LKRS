@@ -10,14 +10,17 @@
 #include <string>
 #include <chrono>
 
-#define LEGACY
+#include <spdlog/spdlog.h>
+#include <spdlog/pattern_formatter.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
-#ifdef LEGACY
-#include "database/legacy/database.hpp"
-#else
 #include "database/database.hpp"
-#endif
+#include "common/utils.hpp"
 
+static const auto _ = []{
+    spdlog::set_pattern("[%l]\t%v");
+    return 0;
+}();
 
 int main (int argc, char* argv[]) {
     if (argc != 3) {
@@ -27,25 +30,12 @@ int main (int argc, char* argv[]) {
 
     std::string dbname = argv[1];
     std::string datafile = argv[2];
-    std::cout << dbname << " " << datafile << std::endl;
 
-#ifdef LEGACY
-    Database db(dbname);
-#else
-    inno::DatabaseBuilder db;
-#endif
-    auto start_time = std::chrono::high_resolution_clock::now();
+    spdlog::info("create RDF database <{}> from path '{}'.", dbname, datafile);
 
-#ifdef LEGACY
-    db.create(datafile);
-#else
-    db.create(dbname, datafile);
-//    auto opt = db.load(dbname);
-//    opt->save(dbname + "_test");
-#endif
+    auto ret = inno::timeit(inno::DatabaseBuilder::Create, dbname, datafile);
 
-    auto stop_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
-    std::cout << "Used time: " << used_time.count() << " ms." << std::endl;
+    spdlog::info("Used time: {} ms.", std::get<1>(ret));
+
     return 0;
 }
