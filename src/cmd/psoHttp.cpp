@@ -8,14 +8,16 @@
 
 #include <iostream>
 #include <string>
+#include <unordered_set>
+#include <set>
 
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <boost/program_options.hpp>
+#include <utility>
 
 #include "query/sparql_query.hpp"
-#include "parser/sparql_parser.hpp"
 
 namespace opt = boost::program_options;
 
@@ -50,7 +52,6 @@ ResultSet execute_query(std::string &sparql) {
             std::string entity = row[i].substr(1);    // exclude the first symbol '"'
             entity.pop_back();                             // remove the last symbol '"'
             item.emplace(var, entity);
-//            item.insert({variables[i], row[i]});
         }
         ret.emplace_back(std::move(item));
     }
@@ -62,6 +63,60 @@ bool execute_insert(std::string &sparql) {
     parser.parse(sparql);
     bool status = db->insert(parser.getInsertTriplets());
     return status;
+}
+
+void load(const httplib::Request &req, httplib::Response &res) {
+    res.set_header("Access-Control-Allow-Origin", "*");
+//    auto predicates = db->getPredicateStatistics();
+    std::unordered_set<uint32_t> node_set;
+    std::set<std::pair<uint32_t, uint32_t>> edge_set;
+    std::vector<nlohmann::json> nodes;
+    std::vector<nlohmann::json> edges;
+
+    std::vector<uint32_t> predicates {1, 2, 3, 4, 6, 7, 18, 19, 20, 21};
+//    for (int pid = 1; pid < predicates.size(); ++pid) {
+    for (auto &pid: predicates) {
+        auto so = db->getSOByP(pid);
+        int num = 20;
+        for (const auto &item : so) {
+            if (pid > 7 && num != 0) num--;
+            else if (pid > 7) break;
+            std::string sid_str = std::to_string(item.first);
+            std::string oid_str = std::to_string(item.second);
+            nlohmann::json s = {
+                    {"id", sid_str},
+                    {"name", db->getEntityById(item.first)}
+            };
+            nlohmann::json o = {
+                    {"id", oid_str},
+                    {"name", db->getEntityById(item.second)}
+            };
+            nlohmann::json p = {
+                    {"source", sid_str},
+                    {"target", oid_str},
+                    {"label", db->getPredicateById(pid)}
+            };
+            if (!node_set.count(item.first)) {
+                node_set.insert(item.first);
+                nodes.emplace_back(s);
+            }
+            if (!node_set.count(item.second)) {
+                node_set.insert(item.second);
+                nodes.emplace_back(o);
+            }
+
+            auto pair = std::make_pair(item.first, item.second);
+            if (!edge_set.count(pair)) {
+                edge_set.insert(pair);
+                edges.emplace_back(p);
+            }
+        }
+    }
+
+    nlohmann::json j;
+    j["nodes"] = nodes;
+    j["edges"] = edges;
+    res.set_content(j.dump(2), "text/plain");
 }
 
 void query(const httplib::Request &req, httplib::Response &res) {
@@ -109,6 +164,7 @@ int main(int argc, char **argv) {
     }
 
     std::string host = vm["host"].as<std::string>();
+    spdlog::info("{}", host);
     int port = vm["port"].as<int>();
     std::string db_name = vm["db_name"].as<std::string>();
 
@@ -124,6 +180,7 @@ int main(int argc, char **argv) {
         res.set_content("connected", "text/plain");
     });
 
+    svr.Get(base + "/load", load);
     svr.Post(base + "/query", query);
     svr.Post(base + "/insert", insert);
 
