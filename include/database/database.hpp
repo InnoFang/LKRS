@@ -63,9 +63,12 @@ public:
         bool insert(const std::string &subject, const std::string &predicate, const std::string &object);
         bool insert(const std::vector<std::tuple<std::string, std::string, std::string>> &triplets);
 
+
+
         /* get pid corresponding to predicate */
         uint32_t getPredicateId(const std::string &predicate);
         uint32_t getPredicateId(const std::string &predicate) const;
+        std::string getPredicateById(const uint32_t &pid);
 
         /* get entity id corresponding to entity (subject and object) */
         uint32_t getEntityId(const std::string &entity);
@@ -77,6 +80,8 @@ public:
         /* get the statistics of pid corresponding to predicate */
         uint32_t getPredicateStatistic(const std::string &predicate) const;
         uint32_t getPredicateStatistic(const std::string &predicate);
+
+        std::vector<uint32_t> getPredicateStatistics();
 
         /* For querying */
         std::unordered_set<uint32_t> getSByPO(const uint32_t &pid, const uint32_t &oid);

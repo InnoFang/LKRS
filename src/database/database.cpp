@@ -244,12 +244,20 @@ public:
         return p2id_.at(p);
     }
 
+    std::string getPredicateById(const uint32_t &pid) const {
+        return id2p_[pid];
+    }
+
     uint32_t getEntityId(const std::string &so) const {
        return so2id_.at(so);
     }
 
     uint32_t getPredicateStatistic(const std::string &p) const {
        return predicate_statistic_[p2id_.at(p)];
+    }
+
+    std::vector<uint32_t> getPredicateStatistics() {
+        return predicate_statistic_;
     }
 
     std::string getEntityById(const uint32_t entity_id) const {
@@ -666,8 +674,16 @@ uint32_t DatabaseBuilder::Option::getPredicateId(const std::string &predicate) {
     return impl_->getPredicateId(predicate);
 }
 
+std::string DatabaseBuilder::Option::getPredicateById(const uint32_t &pid) {
+    return impl_->getPredicateById(pid);
+}
+
 uint32_t DatabaseBuilder::Option::getPredicateStatistic(const std::string &p) const {
     return impl_->getPredicateStatistic(p);
+}
+
+std::vector<uint32_t> DatabaseBuilder::Option::getPredicateStatistics() {
+    return impl_->getPredicateStatistics();
 }
 
 uint32_t DatabaseBuilder::Option::getEntityId(const std::string &entity) {
@@ -709,5 +725,6 @@ std::unordered_multimap<uint32_t, uint32_t> DatabaseBuilder::Option::getO2SByP(c
 std::set<std::pair<uint32_t, uint32_t>> DatabaseBuilder::Option::getSOByP(const uint32_t &pid) {
     return impl_->getSOByP(pid);
 }
+
 
 } // namespace inno
