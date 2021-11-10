@@ -1,17 +1,19 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <chrono>
 #include <set>
+#include <string>
+#include <sstream>
+#include <fstream>
+#include <iostream>
 
-#ifdef LEGACY
-#include "parser/legacy/sparql_parser.hpp"
-#include "database/legacy/database.hpp"
-#include "query/legacy/sparql_query.hpp"
-#else
+#include <spdlog/spdlog.h>
+
+#include "common/utils.hpp"
+#include "database/database.hpp"
 #include "query/sparql_query.hpp"
-#include "parser/sparql_parser.hpp"
-#endif
+
+static const auto _ = []{
+    spdlog::set_pattern("[%l]\t%v");
+    return 0;
+}();
 
 std::string readSPARQLFromFile(const std::string& filepath) {
     std::ifstream infile(filepath, std::ios::in);
@@ -31,40 +33,22 @@ std::string readSPARQLFromFile(const std::string& filepath) {
     return sparql;
 }
 
-void execute_query(SparqlQuery& sparqlQuery, const std::string& query_file) {
-
-    std::string sparql = readSPARQLFromFile(query_file);
-    SparqlParser parser(sparql);
-
+void execute_query(inno::SparqlQuery& sparqlQuery, inno::SparqlParser& parser) {
     auto result = sparqlQuery.query(parser);
 
-    std::cout << "Used time: " << sparqlQuery.UsedTime << " ms." << std::endl;
-
+    spdlog::info("Query time: {} ms.", sparqlQuery.getQueryTime());
     if (result.empty()) {
-        std::cout << "[empty result]" << std::endl;
+        spdlog::info("[Empty Result]");
     } else {
+        spdlog::info("{} result(s).", result.size());
         auto variables = parser.getQueryVariables();
 
-        std::set<std::vector<uint64_t>> unique_result;
-        for (const auto &row : result) {
-            std::vector<uint64_t> item;
-            item.reserve(variables.size());
-            for (auto &variable: variables) {
-                item.emplace_back(row.at(variable));
-            }
-            unique_result.insert( std::move(item) );
-        }
-
-        std::cout << unique_result.size() << " result(s)" << std::endl;
-
         std::cout << "\n=============================================================\n";
-
         std::copy(variables.begin(), variables.end(), std::ostream_iterator<std::string>(std::cout, "\t"));
         std::cout << std::endl;
-        for (const std::vector<uint64_t> &row : unique_result) {
-            for (const uint64_t &so_id : row) {
-                std::cout << sparqlQuery.getSOById(so_id) << "\t";
-            }
+
+        for (const auto &item : result) {
+            std::copy(item.begin(), item.end(), std::ostream_iterator<std::string>(std::cout, "\t"));
             std::cout << std::endl;
         }
     }
@@ -81,22 +65,41 @@ int main(int argc, char** argv) {
         return 1;
     }
     std::string dbname = argv[1];
-    SparqlQuery sparqlQuery(dbname);
+    std::string query_file = argv[2];
+
+    std::shared_ptr<inno::DatabaseBuilder::Option> db;
+    double used_time = 0;
+
+    std::string sparql = readSPARQLFromFile(query_file);
+    inno::SparqlParser parser;
+
     if (argc >= 3) {
-        std::string query_file = argv[2];
-        execute_query(sparqlQuery, query_file);
+        parser.parse(sparql);
+
+        std::tie(db, used_time) = inno::timeit(inno::DatabaseBuilder::LoadPartial, dbname, parser);
+        spdlog::info("<{}> load done, used {} ms.", dbname, used_time);
+
+        inno::SparqlQuery sparqlQuery(db);
+        execute_query(sparqlQuery, parser);
     } else {
+        std::tie(db, used_time) = inno::timeit(inno::DatabaseBuilder::Load, dbname);
+        spdlog::info("<{}> load done, used {} ms.", dbname, used_time);
+
+        inno::SparqlQuery sparqlQuery(db);
         for (;;) {
             std::cout << "\nquery >  ";
-            std::string query_file;
             std::cin >> query_file;
             if (query_file == "exit" || query_file == "quit" || query_file == "q") {
                 break;
             }
-            execute_query(sparqlQuery, query_file);
+
+            sparql = readSPARQLFromFile(query_file);
+            parser.parse(sparql);
+            execute_query(sparqlQuery, parser);
         }
     }
 
     return 0;
 }
 // D:\Projects\Cpp\retrieve-system\data\lubm\lubm_q1.sql
+// D:\Projects\Cpp\retrieve-system\data\watdiv10m\C10.in
