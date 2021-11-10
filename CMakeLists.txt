@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(retrieve-system LANGUAGES CXX) # CUDA
+project(pisano LANGUAGES CXX) # CUDA
 # if need to set CUDA compiler, add
 # -DCMAKE_CUDA_COMPILER="C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.1/bin/nvcc.exe"
 
