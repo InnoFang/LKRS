@@ -3,8 +3,8 @@
 #include <string>
 #include <spdlog/spdlog.h>
 #include <boost/filesystem.hpp>
-#include "parser/sparql_parser.hpp"
 
+#include "parser/sparql_parser.hpp"
 
 namespace test {
 
@@ -33,9 +33,10 @@ protected:
 
 TEST_F(SparqlParserTest, IndistinctSparql) {
     std::string sparql = "select ?x ?p where { ?x ?p <FullProfessor0>. }";
-    SparqlParser sparqlParser(sparql);
+    inno::SparqlParser sparqlParser;
+    sparqlParser.parse(sparql);
 
-    auto distinct = sparqlParser.isDistinct();
+    auto distinct = sparqlParser.isDistinctQuery();
     EXPECT_FALSE(distinct);
 
     auto query_variables = sparqlParser.getQueryVariables();
@@ -45,9 +46,10 @@ TEST_F(SparqlParserTest, IndistinctSparql) {
 
 TEST_F(SparqlParserTest, DistinctSparql) {
     std::string sparql = "select distinct ?x ?p where { ?x ?p <FullProfessor0>. }";
-    SparqlParser sparqlParser(sparql);
+    inno::SparqlParser sparqlParser;
+    sparqlParser.parse(sparql);
 
-    auto distinct = sparqlParser.isDistinct();
+    auto distinct = sparqlParser.isDistinctQuery();
     EXPECT_TRUE(distinct);
 
     auto query_variables = sparqlParser.getQueryVariables();
@@ -55,24 +57,29 @@ TEST_F(SparqlParserTest, DistinctSparql) {
     EXPECT_EQ(expect_variables, query_variables);
 }
 
-TEST_F(SparqlParserTest, ParseSqlFromFile) {
-    fs::path project_dir = fs::path(std::string(__FILE__)).parent_path().parent_path();
+TEST_F(SparqlParserTest, ParseInsertStatement) {
+    std::string sparql = "INSERT DATA { A :likes B .\n"
+                         "A :likes C ."
+                         "B :follows D ."
+                         "D :follows E . "
+                         "}";
+    inno::SparqlParser parser;
+    parser.parse(sparql);
+    std::string s, p, o;
+    auto triplets = parser.getInsertTriplets();
+    EXPECT_EQ(4, triplets.size());
 
-    fs::path sparql_file_path =
-            project_dir.append("data").append("lubm").append("lubm_q1.sql");
-
-    std::string sparql = readSPARQLFromFile(sparql_file_path);
-    SparqlParser sparqlParser(sparql);
-
-    auto distinct = sparqlParser.isDistinct();
-    EXPECT_TRUE(distinct);
-
-    auto query_variables = sparqlParser.getQueryVariables();
-    auto expect_variables = std::vector<std::string> {"?x"};
-    EXPECT_EQ(expect_variables, query_variables);
-
-    auto query_triples_size = sparqlParser.getQueryTriples().size();
-    EXPECT_EQ(6, query_triples_size);
+    std::vector<inno::SparqlParser::Triplet> answer = {
+            {"A", ":likes", "B"},
+            {"A", ":likes", "C"},
+            {"B", ":follows", "D"},
+            {"D", ":follows", "E"},
+    };
+    for (auto a_beg = answer.begin(), b_beg = triplets.begin();
+              a_beg != answer.end() && b_beg != triplets.end();
+              a_beg++, b_beg++) {
+        EXPECT_EQ(*a_beg, *b_beg);
+    }
 }
 
 } // namespace test
