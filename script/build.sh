@@ -1,12 +1,15 @@
 ﻿#!/usr/bin/env bash
 
 test -e ../build || mkdir -p ../build
-echo "mkdir build"
+echo "create build"
 
 test -e ../bin || mkdir -p ../bin
-echo "mkdir bin"
+echo "create bin"
 
 cd ../build
-conan install ..
+
+conan install .. -s build_type=Debug
 cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build .
+
+cd ..
