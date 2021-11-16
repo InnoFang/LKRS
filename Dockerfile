@@ -4,23 +4,31 @@ FROM conanio/gcc9
 USER root
 
 # setup conan
-RUN conan profile new default --detect &&\
+RUN pip install conan --upgrade &&\
+    conan profile new default --detect &&\
     conan profile update settings.compiler.libcxx=libstdc++11 default
 
-COPY data/lubm /retrieve-system/data/lubm
-COPY include /retrieve-system/include
-COPY src /retrieve-system/src
-COPY test /retrieve-system/test
-COPY CMakeLists.txt /retrieve-system/CMakeLists.txt
-COPY conanfile.txt /retrieve-system/conanfile.txt
+# copy data
+COPY include /pisano/include
+COPY scripts /pisano/scripts
+COPY src /pisano/src
+COPY test /pisano/test
+COPY CMakeLists.txt /pisano/CMakeLists.txt
+COPY conanfile.txt /pisano/conanfile.txt
+RUN mkdir -p /pisano/bin &&\
+    mkdir -p /pisano/build
 
-RUN mkdir -p /retrieve-system/bin &&\
-    mkdir -p /retrieve-system/build
-
-WORKDIR /retrieve-system/build
-RUN conan install .. -s build_type=Release --build &&\
-    cmake .. -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release &&\
+#build
+WORKDIR /pisano/build
+RUN conan install .. -s build_type=Release --build
+RUN cmake .. -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release &&\
     cmake --build .
 
-WORKDIR /retrieve-system
+# build
+#WORKDIR /pisano/scripts
+#RUN chmod +x ./build.sh
+#RUN ./build.sh
+
+# test
+WORKDIR /pisano
 RUN ./bin/unitTests
