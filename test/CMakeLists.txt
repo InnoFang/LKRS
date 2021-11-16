@@ -1,5 +1,3 @@
-#add_definitions(-DLEGACY)
-
 set(SOURCE_FILES
         test.cpp
         sparql_parser_test.cpp

@@ -44,6 +44,37 @@ TEST_F(SparqlParserTest, IndistinctSparql) {
     EXPECT_EQ(expect_variables, query_variables);
 }
 
+TEST_F(SparqlParserTest, ParseSparqlInCRLF) {
+    std::string sparql = "SELECT ?v0 ?v1 \r\n"
+                         "WHERE { \r\n"
+                         "?v0 <http://db.uwaterloo.ca/~galuc/wsdbm/likes> ?v1 . \r\n"
+                         "?v0 <http://db.uwaterloo.ca/~galuc/wsdbm/subscribes> <http://db.uwaterloo.ca/~galuc/wsdbm/Website36> . \r\n"
+                         "}";
+    inno::SparqlParser sparqlParser;
+    sparqlParser.parse(sparql);
+
+    auto distinct = sparqlParser.isDistinctQuery();
+    EXPECT_FALSE(distinct);
+
+    auto query_variables = sparqlParser.getQueryVariables();
+    auto expect_variables = std::vector<std::string> {"?v0", "?v1"};
+    EXPECT_EQ(expect_variables, query_variables);
+
+    auto triplets = sparqlParser.getQueryTriplets();
+    EXPECT_EQ(2, triplets.size());
+
+    std::vector<inno::SparqlParser::Triplet> answer = {
+            {"?v0", "<http://db.uwaterloo.ca/~galuc/wsdbm/likes>", "?v1"},
+            { "?v0", "<http://db.uwaterloo.ca/~galuc/wsdbm/subscribes>", "<http://db.uwaterloo.ca/~galuc/wsdbm/Website36>"},
+    };
+    for (auto a_beg = answer.begin(), b_beg = triplets.begin();
+         a_beg != answer.end() && b_beg != triplets.end();
+         a_beg++, b_beg++) {
+        EXPECT_EQ(*a_beg, *b_beg);
+    }
+}
+
+
 TEST_F(SparqlParserTest, DistinctSparql) {
     std::string sparql = "select distinct ?x ?p where { ?x ?p <FullProfessor0>. }";
     inno::SparqlParser sparqlParser;
@@ -65,7 +96,6 @@ TEST_F(SparqlParserTest, ParseInsertStatement) {
                          "}";
     inno::SparqlParser parser;
     parser.parse(sparql);
-    std::string s, p, o;
     auto triplets = parser.getInsertTriplets();
     EXPECT_EQ(4, triplets.size());
 
