@@ -15,7 +15,7 @@ if not exist bin (
 
 cd build
 
-conan install .. -s build_type=Debug
+@REM conan install .. -s build_type=Release
 cmake ..
 cmake --build . --config Release
 
