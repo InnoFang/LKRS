@@ -25,7 +25,8 @@ namespace fs = boost::filesystem;
 class DatabaseBuilder::Impl {
 private:
 //    using entity_pair_set = inno::SkipList<std::pair<uint32_t, uint32_t>>;
-    using entity_pair_set = std::set<std::pair<uint32_t, uint32_t>>;
+//    using entity_pair_set = std::set<std::pair<uint32_t, uint32_t>>;
+    using entity_pair_set = std::unordered_multimap<uint32_t, uint32_t>;
 
 public:
     Impl() : info_path_("info")
@@ -219,12 +220,27 @@ public:
             pid_list.emplace_back(pid);
         }
 
-        auto triplet_load_task = std::async(std::launch::async,
-                                            &DatabaseBuilder::Impl::load_partial_triplet_,
-                                            this,
-                                            db_path / triplet_path_,
-                                            pid_list);
-        triplet_load_task.get();
+        // Read data
+//        auto triplet_load_task = std::async(std::launch::async,
+//                                            &DatabaseBuilder::Impl::load_partial_triplet_,
+//                                            this,
+//                                            db_path / triplet_path_,
+//                                            pid_list);
+//        triplet_load_task.get();
+
+        // Read data asynchronously
+        std::vector<std::future<entity_pair_set>> task_list;
+        task_list.reserve(pid_list.size());
+        for (const auto &pid : pid_list) {
+           task_list.emplace_back(std::async(std::launch::async,
+                                             &DatabaseBuilder::Impl::load_triplet_with_pid_,
+                                             this,
+                                             db_path/triplet_path_
+                                             ,pid));
+        }
+        for(int i = 0; i < pid_list.size(); i++) {
+            predicate_indexed_storage_.emplace(pid_list[i], std::move(task_list[i].get()));
+        }
     }
 
         void unload() {
@@ -264,7 +280,8 @@ public:
         return id2so_.at(entity_id);
     }
 
-    std::unordered_set<uint32_t> getSByPO(const uint32_t &pid, const uint32_t &oid) {
+    std::unordered_set<uint32_t>
+    getSByPO(const uint32_t &pid, const uint32_t &oid) {
         std::unordered_set<uint32_t> ret;
         ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
         for (const auto &item : predicate_indexed_storage_[pid]) {
@@ -275,7 +292,8 @@ public:
         return ret;
     }
 
-    std::unordered_set<uint32_t> getOBySP(const uint32_t &sid, const uint32_t &pid) {
+    std::unordered_set<uint32_t>
+    getOBySP(const uint32_t &sid, const uint32_t &pid) {
         std::unordered_set<uint32_t> ret;
         ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
         for (const auto &item : predicate_indexed_storage_[pid]) {
@@ -286,16 +304,19 @@ public:
         return ret;
     }
 
-    std::unordered_multimap<uint32_t, uint32_t> getS2OByP(const uint32_t &pid) {
-        std::unordered_multimap<uint32_t, uint32_t> ret;
-        ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
-        for (const auto &item : predicate_indexed_storage_[pid]) {
-            ret.emplace(item.first, item.second);
-        }
-        return ret;
+    const std::unordered_multimap<uint32_t, uint32_t> &
+    getS2OByP(const uint32_t &pid) {
+//        std::unordered_multimap<uint32_t, uint32_t> ret;
+//        ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
+//        for (const auto &item : predicate_indexed_storage_[pid]) {
+//            ret.emplace(item.first, item.second);
+//        }
+//        return ret;
+        return predicate_indexed_storage_[pid];
     }
 
-    std::unordered_multimap<uint32_t, uint32_t> getO2SByP(const uint32_t &pid) {
+    std::unordered_multimap<uint32_t, uint32_t>
+    getO2SByP(const uint32_t &pid) {
         std::unordered_multimap<uint32_t, uint32_t> ret;
         ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
         for (const auto &item : predicate_indexed_storage_[pid]) {
@@ -304,9 +325,9 @@ public:
         return ret;
     }
 
-    std::set<std::pair<uint32_t, uint32_t>> getSOByP(const uint32_t &pid) {
-        return predicate_indexed_storage_[pid];
-    }
+//    std::set<std::pair<uint32_t, uint32_t>> getSOByP(const uint32_t &pid) {
+//        return predicate_indexed_storage_[pid];
+//    }
 
 private:
     void initialize_() {
@@ -519,6 +540,7 @@ private:
             in.tie(nullptr);
 
             if (in.is_open()) {
+                predicate_indexed_storage_[pid].reserve(predicate_statistic_[pid]);
                 while (!in.eof()) {
                     uint32_t sid, oid;
                     in >> sid >> oid;
@@ -563,6 +585,7 @@ private:
             in.tie(nullptr);
 
             if (in.is_open()) {
+                predicate_indexed_storage_[pid].reserve(predicate_statistic_[pid]);
                 while (!in.eof()) {
                     uint32_t sid, oid;
                     in >> sid >> oid;
@@ -579,7 +602,7 @@ private:
         return true;
     }
 
-    bool load_triplet_with_pid_(const fs::path &path, const uint32_t &pid) {
+    entity_pair_set load_triplet_with_pid_(const fs::path &path, const uint32_t &pid) {
         fs::path child_path = path/fs::path(std::to_string(pid));
         fs::ifstream in(child_path, fs::ifstream::in | fs::ifstream::binary);
         entity_pair_set pair_set;
@@ -590,12 +613,13 @@ private:
                 pair_set.emplace(sid, oid);
             }
             in.close();
-            predicate_indexed_storage_.emplace(pid, std::move(pair_set));
-            return true;
+//            predicate_indexed_storage_.emplace(pid, std::move(pair_set));
+            return pair_set;
         } else {
             spdlog::error("load_triplet_with_pid_ function occurs problem, "
                           "`{}` cannot be read.", child_path.string());
-            return false;
+//            return false;
+            return {};
         }
     }
 
@@ -615,6 +639,7 @@ private:
     std::vector<uint32_t> predicate_statistic_;
 
     std::unordered_map<uint32_t, entity_pair_set> predicate_indexed_storage_;
+//    std::unordered_map<uint32_t, entity_pair_set> reversed_cache_indexed;
 };
 
 DatabaseBuilder::DatabaseBuilder() = default;
@@ -636,9 +661,9 @@ DatabaseBuilder::Load(const std::string &db_name) {
 }
 
 std::shared_ptr<DatabaseBuilder::Option>
-DatabaseBuilder::LoadPartial(const std::string &db_name, const SparqlParser &parser) {
+DatabaseBuilder::LoadPartial(const std::string &db_name, const std::vector<std::string> &predicate_indexed_list) {
     std::shared_ptr<Impl> impl(new Impl());
-    impl->load(db_name, parser.getPredicateIndexedList());
+    impl->load(db_name, predicate_indexed_list);
     return std::make_shared<DatabaseBuilder::Option>(impl);
 }
 
@@ -706,25 +731,30 @@ uint32_t DatabaseBuilder::Option::getPredicateStatistic(const std::string &p) {
     return impl_->getPredicateStatistic(p);
 }
 
-std::unordered_set<uint32_t> DatabaseBuilder::Option::getSByPO(const uint32_t &pid, const uint32_t &oid) {
+std::unordered_set<uint32_t>
+DatabaseBuilder::Option::getSByPO(const uint32_t &pid, const uint32_t &oid) {
     return impl_->getSByPO(pid, oid);
 }
 
-std::unordered_set<uint32_t> DatabaseBuilder::Option::getOBySP(const uint32_t &sid, const uint32_t &pid) {
+std::unordered_set<uint32_t>
+DatabaseBuilder::Option::getOBySP(const uint32_t &sid, const uint32_t &pid) {
     return impl_->getOBySP(sid, pid);
 }
 
-std::unordered_multimap<uint32_t, uint32_t> DatabaseBuilder::Option::getS2OByP(const uint32_t &pid) {
+const std::unordered_multimap<uint32_t, uint32_t> &
+DatabaseBuilder::Option::getS2OByP(const uint32_t &pid) {
     return impl_->getS2OByP(pid);
 }
 
-std::unordered_multimap<uint32_t, uint32_t> DatabaseBuilder::Option::getO2SByP(const uint32_t &pid) {
+std::unordered_multimap<uint32_t, uint32_t>
+DatabaseBuilder::Option::getO2SByP(const uint32_t &pid) {
     return impl_->getO2SByP(pid);
 }
 
-std::set<std::pair<uint32_t, uint32_t>> DatabaseBuilder::Option::getSOByP(const uint32_t &pid) {
-    return impl_->getSOByP(pid);
-}
+//std::set<std::pair<uint32_t, uint32_t>> DatabaseBuilder::Option::getSOByP(const uint32_t &pid) {
+////    return impl_->getSOByP(pid);
+//    return {};
+//}
 
 
 } // namespace inno
