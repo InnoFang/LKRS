@@ -8,6 +8,7 @@
 
 #include "query/sparql_query.hpp"
 
+#include <list>
 #include <queue>
 #include <algorithm>
 #include <functional>
@@ -61,9 +62,13 @@ public:
 
     ResultSet query(SparqlParser &parser) {
         initialize();
+
         QueryQueue query_queue = generateQueryPlan(parser);
+
         TempResult result;
-        TIMEIT(  result = execute(query_queue), query_time_ );
+        std::tie(result, query_time_) =
+                inno::timeit(std::bind(&SparqlQuery::Impl::execute, this, query_queue));
+
         return resultMapper(result, parser.getQueryVariables());
     }
 
@@ -115,7 +120,7 @@ public:
 
         std::sort(triplet_list.begin(), triplet_list.end(),
                   [this](const SparqlParser::Triplet &a, const SparqlParser::Triplet &b) {
-            return db_->getPredicateStatistic(std::get<1>(a)) < db_->getPredicateId(std::get<1>(b));
+            return db_->getPredicateStatistic(std::get<1>(a)) < db_->getPredicateStatistic(std::get<1>(b));
         });
 
         // node set contains all query variables
@@ -144,9 +149,13 @@ public:
                 // which means the join_or_filter_var_id is not 0,
                 // so left shift 8 bit so that can use bitwise OR to add oid;
                 type = QueryType::FIRST_SO;
+                spdlog::info("[0] FIRST_SO, size: {},  {} {} {}", db_->getPredicateStatistic(p), s, p, o);
             } else {
                 type = QueryType::FIRST_O;
+                spdlog::info("[0] FIRST_O, {} {} {}", db_->getPredicateStatistic(p), s, p, o);
             }
+        } else {
+            spdlog::info("[0] FIRST_S, {} {} {}", db_->getPredicateStatistic(p), s, p, o);
         }
 
         // if there is only one query triplet, use the above join_or_filter_var_id by default.
@@ -155,6 +164,15 @@ public:
         query_queue.emplace_back(triplet_id, type);
         triplet_list.erase(triplet_list.begin());
 
+        std::vector<std::string> type_str {
+            "FILTER_S",
+            "FILTER_O",
+            "FILTER_SO",
+            "JOIN_S",
+            "JOIN_O",
+        };
+
+        int idx = 1;
         while (!triplet_list.empty()) {
             auto curr = triplet_list.begin();
             while (curr != triplet_list.end()) {
@@ -195,6 +213,7 @@ public:
                 }
 
                 if (match) {
+                    spdlog::info("[{}] {}, size: {},  {} {} {}", idx++, type_str[type], db_->getPredicateStatistic(p), s, p, o);
                     query_queue.emplace_back(convert2TripletId(s, p, o), type);
                     triplet_list.erase(curr);
                     break;
@@ -213,12 +232,18 @@ public:
             return result;
         }
 
+        double time = 0;
         auto query_item = query_queue.front(); query_queue.pop_front();
         result = first_query_(query_item);
+//        std::tie( result, time ) = inno::timeit(std::bind(&SparqlQuery::Impl::first_query_, this, query_item));
+//        int idx = 0;
+//        spdlog::info("[{}] result size: {}, used {} ms.", idx++, result.size(), time);
 
         while (!query_queue.empty() && !result.empty()) {
             query_item = query_queue.front(); query_queue.pop_front();
             result = query_selector_.at(std::get<1>(query_item))(result, query_item);
+//           std::tie( result, time ) = inno::timeit( query_selector_.at(std::get<1>(query_item)), result, query_item);
+//            spdlog::info("[{}] result size: {}, used {} ms.", idx++, result.size(), time);
         }
         return result;
     }
@@ -228,7 +253,6 @@ public:
         query_ids.reserve(query_variables.size());
         for (const auto &var : query_variables) {
             query_ids.emplace_back(var2id_[var]);
-
         }
 
         ResultSet result;
@@ -260,7 +284,8 @@ private:
         uint32_t sid, pid, oid;
         std::tie(sid, pid, oid) = tripletId;
 
-        auto data = db_->getSOByP(pid);
+//        auto data = db_->getSOByP(pid);
+        auto data = db_->getS2OByP(pid);
 
         TempResult result;
         result.reserve(data.size());
@@ -312,20 +337,23 @@ private:
         QueryType type;
         std::tie(tripletId, type) = query_item;
 
-        uint32_t sid, pid, _;
-        std::tie(sid, pid, _) = tripletId;
+        uint32_t sid, pid, oid;
+        std::tie(sid, pid, oid) = tripletId;
+
         auto data = db_->getS2OByP(pid);
+
 
         TempResult result;
         result.reserve(temp_result.size());
         for (const auto &item : temp_result) {
             auto range = data.equal_range(item.at(sid));
             for (auto it = range.first; it != range.second; ++it) {
-                ResultItemType result_item(item.begin(), item.end());
-                result_item.emplace(std::get<2>(tripletId), it->second);
-                result.push_back(std::move(result_item));
+                ResultItemType result_item = item;
+                result_item.emplace(oid, it->second);
+                result.emplace_back(std::move(result_item));
             }
         }
+
         return result;
     }
 
@@ -335,8 +363,8 @@ private:
         QueryType type;
         std::tie(tripletId, type) = query_item;
 
-        uint32_t _, pid, oid;
-        std::tie(_, pid, oid) = tripletId;
+        uint32_t sid, pid, oid;
+        std::tie(sid, pid, oid) = tripletId;
         auto data = db_->getO2SByP(pid);
 
         TempResult result;
@@ -344,9 +372,9 @@ private:
         for (const auto &item : temp_result) {
             auto range = data.equal_range(item.at(oid));
             for (auto it = range.first; it != range.second; ++it) {
-                ResultItemType result_item(item.begin(), item.end());
-                result_item.emplace(std::get<0>(tripletId), it->second);
-                result.push_back(result_item);
+                ResultItemType result_item = item;
+                result_item.emplace(sid, it->second);
+                result.emplace_back(result_item);
             }
         }
         return result;
@@ -400,17 +428,37 @@ private:
 
         uint32_t sid, pid, oid;
         std::tie(sid, pid, oid) = tripletId;
-        auto data = db_->getSOByP(pid);
+//        auto data = db_->getSOByP(pid);
+
+        ///////////
+
+
+        auto data = db_->getS2OByP(pid);
 
         TempResult result;
         result.reserve(temp_result.size());
-
         for (const auto &item : temp_result) {
-            if (data.count({item.at(sid), item.at(oid)})) {
-                result.emplace_back(item);
+            auto range = data.equal_range(item.at(sid));
+            for (auto it = range.first; it != range.second; ++it) {
+                if (it->second == item.at(oid)) {
+                    result.emplace_back(item);
+                }
+//                ResultItemType result_item(item.begin(), item.end());
+//                result_item.emplace(std::get<2>(tripletId), it->second);
+//                result.push_back(std::move(result_item));
             }
         }
         return result;
+        //////////
+
+//        TempResult result;
+//        result.reserve(temp_result.size());
+//        for (const auto &item : temp_result) {
+//            if (data.count({item.at(sid), item.at(oid)})) {
+//                result.emplace_back(item);
+//            }
+//        }
+//        return result;
     }
 
 public:
