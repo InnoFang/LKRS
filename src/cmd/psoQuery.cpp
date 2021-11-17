@@ -76,7 +76,8 @@ int main(int argc, char** argv) {
     if (argc >= 3) {
         parser.parse(sparql);
 
-        std::tie(db, used_time) = inno::timeit(inno::DatabaseBuilder::LoadPartial, dbname, parser);
+        std::tie(db, used_time) =
+                inno::timeit(inno::DatabaseBuilder::LoadPartial, dbname, parser.getPredicateIndexedList());
         spdlog::info("<{}> load done, used {} ms.", dbname, used_time);
 
         inno::SparqlQuery sparqlQuery(db);
