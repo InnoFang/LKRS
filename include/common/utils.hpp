@@ -18,14 +18,18 @@
             (RECORD) = used_time.count(); \
         } while(0);
 
+namespace inno {
+
 /* RECOMMEND!! timing function */
 template<typename Function, typename... Types>
 decltype(auto) timeit(Function &&function, Types &&...args) {
-    auto start_time = std::chrono::high_resolution_clock::now();
-    auto ret = function(args...);
-    auto stop_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> diff = stop_time - start_time; \
+        auto start_time = std::chrono::high_resolution_clock::now();
+        auto ret = function(args...);
+        auto stop_time = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> diff = stop_time - start_time; \
     return std::make_tuple(std::move(ret), diff.count());
 }
+
+} // namespace inno
 
 #endif //RETRIEVE_SYSTEM_UTILS_HPP
