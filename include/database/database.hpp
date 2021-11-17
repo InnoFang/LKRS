@@ -24,8 +24,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "parser/sparql_parser.hpp"
-
 namespace inno {
 
 class DatabaseBuilder {
@@ -44,7 +42,8 @@ public:
 
     /* load a RDF database named @db_name */
     static std::shared_ptr<DatabaseBuilder::Option> Load(const std::string &db_name);
-    static std::shared_ptr<DatabaseBuilder::Option> LoadPartial(const std::string &db_name, const SparqlParser &parser);
+    static std::shared_ptr<DatabaseBuilder::Option>
+    LoadPartial(const std::string &db_name, const std::vector<std::string> &predicate_indexed_list);
 
 public:
     class Option {
@@ -62,8 +61,6 @@ public:
         /* insert RDF raw triplet, which is expressed as <s, p, o> */
         bool insert(const std::string &subject, const std::string &predicate, const std::string &object);
         bool insert(const std::vector<std::tuple<std::string, std::string, std::string>> &triplets);
-
-
 
         /* get pid corresponding to predicate */
         uint32_t getPredicateId(const std::string &predicate);
@@ -87,10 +84,10 @@ public:
         std::unordered_set<uint32_t> getSByPO(const uint32_t &pid, const uint32_t &oid);
         std::unordered_set<uint32_t> getOBySP(const uint32_t &sid, const uint32_t &pid);
 
-        std::unordered_multimap<uint32_t, uint32_t> getS2OByP(const uint32_t &pid);
+        const std::unordered_multimap<uint32_t, uint32_t> &getS2OByP(const uint32_t &pid);
         std::unordered_multimap<uint32_t, uint32_t> getO2SByP(const uint32_t &pid);
 
-        std::set<std::pair<uint32_t, uint32_t>> getSOByP(const uint32_t &pid);
+//        std::set<std::pair<uint32_t, uint32_t>> getSOByP(const uint32_t &pid);
 
     private:
         std::shared_ptr<Impl> impl_;
