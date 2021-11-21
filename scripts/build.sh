@@ -1,4 +1,4 @@
-﻿#!/bin/sh
+﻿#!/bin/bash
 
 test -e ../build || mkdir -p ../build
 echo "create build"
