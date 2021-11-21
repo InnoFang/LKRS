@@ -20,24 +20,9 @@
 #include <spdlog/spdlog.h>
 
 #include "common/utils.hpp"
+//#include "query/query_plan.hpp"
 
 namespace inno {
-
-enum QueryType {
-    FILTER_S,  // that's O is known, one variable no need to join, filter intermediate Result by S
-    FILTER_O,  // that's S is known, one variable no need to join, filter intermediate Result by O
-    FILTER_SO, // S and O isn't known, but the previous query variable set contains this S and O, filter by S and O
-    JOIN_S,    // S is query variable, and O is not known
-    JOIN_O,    // O is query variable, and S is not known
-    FIRST_S,   // that's the first query triplet for the whole query statement
-    FIRST_O,   // that's the first query triplet for the whole query statement
-    FIRST_SO,  // that's the first query triplet for the whole query statement
-};
-
-using TempResult = std::vector<std::unordered_map<uint32_t, uint32_t>>;
-using TripletId = std::tuple<uint32_t, uint32_t, uint32_t>;  // (Subject, Predicate, Object)
-using QueryItem = std::tuple<TripletId, QueryType>;// (TripletId tuple, QueryType, Join/Filter Variable Id)
-using QueryQueue = std::deque<QueryItem>;
 
 class SparqlQuery::Impl {
 public:
@@ -119,8 +104,20 @@ public:
 //        }
 
         std::sort(triplet_list.begin(), triplet_list.end(),
-                  [this](const SparqlParser::Triplet &a, const SparqlParser::Triplet &b) {
-            return db_->getPredicateStatistic(std::get<1>(a)) < db_->getPredicateStatistic(std::get<1>(b));
+                  [this](const inno::Triplet &a, const inno::Triplet &b) {
+            std::string a_s, a_p, a_o, b_s, b_p, b_o;
+            std::tie(a_s, a_p, a_o) = a;
+            std::tie(b_s, b_p, b_o) = b;
+            uint32_t a_num = db_->getPredicateCount(a_p);
+            uint32_t b_num = db_->getPredicateCount(b_p);
+
+            if (a_s[0] != '?') a_num = std::min(a_num, db_->getEntityCount(a_s));
+            else if (a_o[0] != '?') a_num = std::min(a_num, db_->getEntityCount(a_o));
+
+            if (b_s[0] != '?') b_num = std::min(b_num, db_->getEntityCount(b_s));
+            else if (b_o[0] != '?') b_num = std::min(b_num, db_->getEntityCount(b_o));
+
+            return  a_num < b_num;
         });
 
         // node set contains all query variables
@@ -137,10 +134,10 @@ public:
         TripletId triplet_id = convert2TripletId(s, p, o);
 
         // join or filter variable id, that's use to join or filter when execute query
-        QueryType type;
+        query_type type;
         if (s[0] == '?') {
             node_set.emplace(s);
-            type = QueryType::FIRST_S;
+            type = query_type::FIRST_S;
         }
         if (o[0] == '?') {
             node_set.emplace(o);
@@ -148,14 +145,14 @@ public:
                 // special case, s and o are both query variable,
                 // which means the join_or_filter_var_id is not 0,
                 // so left shift 8 bit so that can use bitwise OR to add oid;
-                type = QueryType::FIRST_SO;
-                spdlog::info("[0] FIRST_SO, size: {},  {} {} {}", db_->getPredicateStatistic(p), s, p, o);
+                type = query_type::FIRST_SO;
+                spdlog::info("[0] FIRST_SO, size: {},  {} {} {}", db_->getPredicateCount(p), s, p, o);
             } else {
-                type = QueryType::FIRST_O;
-                spdlog::info("[0] FIRST_O, {} {} {}", db_->getPredicateStatistic(p), s, p, o);
+                type = query_type::FIRST_O;
+                spdlog::info("[0] FIRST_O, {} {} {}", db_->getPredicateCount(p), s, p, o);
             }
         } else {
-            spdlog::info("[0] FIRST_S, {} {} {}", db_->getPredicateStatistic(p), s, p, o);
+            spdlog::info("[0] FIRST_S, {} {} {}", db_->getPredicateCount(p), s, p, o);
         }
 
         // if there is only one query triplet, use the above join_or_filter_var_id by default.
@@ -194,26 +191,26 @@ public:
                 if (is_s_var && is_o_var) {
                     if (is_s_in_node_set && is_o_in_node_set) {
                         // special case, which have two var to filter.
-                        type = QueryType::FILTER_SO;
+                        type = query_type::FILTER_SO;
                     } else if (is_s_in_node_set) {
-                        type = QueryType::JOIN_S;
+                        type = query_type::JOIN_S;
                         node_set.emplace(o);
                     } else if (is_o_in_node_set) {
-                        type = QueryType::JOIN_O;
+                        type = query_type::JOIN_O;
                         node_set.emplace(s);
                     } else {
                         match = false;
                     }
                 } else if (is_s_var && is_s_in_node_set) {
-                    type = QueryType::FILTER_S;
+                    type = query_type::FILTER_S;
                 } else if (is_o_var && is_o_in_node_set) {
-                    type = QueryType::FILTER_O;
+                    type = query_type::FILTER_O;
                 } else {
                     match = false;
                 }
 
                 if (match) {
-                    spdlog::info("[{}] {}, size: {},  {} {} {}", idx++, type_str[type], db_->getPredicateStatistic(p), s, p, o);
+                    spdlog::info("[{}] {}, size: {},  {} {} {}", idx++, type_str[type], db_->getPredicateCount(p), s, p, o);
                     query_queue.emplace_back(convert2TripletId(s, p, o), type);
                     triplet_list.erase(curr);
                     break;
@@ -278,7 +275,7 @@ private:
     TempResult
     first_query_(const QueryItem &query_item) {
         TripletId tripletId;
-        QueryType type;
+        query_type type;
         std::tie(tripletId, type) = query_item;
 
         uint32_t sid, pid, oid;
@@ -290,7 +287,7 @@ private:
         TempResult result;
         result.reserve(data.size());
 
-        if (type == QueryType::FIRST_S) {
+        if (type == query_type::FIRST_S) {
             for (const auto &item : data) {
                 if (oid == item.second) {
                     ResultItemType result_item;
@@ -298,7 +295,7 @@ private:
                     result.push_back(std::move(result_item));
                 }
             }
-        } else if (type == QueryType::FIRST_O) {
+        } else if (type == query_type::FIRST_O) {
             for (const auto &item : data) {
                 if (sid == item.first) {
                     ResultItemType result_item;
@@ -334,7 +331,7 @@ private:
     TempResult
     join_s_(const TempResult &temp_result, const QueryItem &query_item) {
         TripletId tripletId;
-        QueryType type;
+        query_type type;
         std::tie(tripletId, type) = query_item;
 
         uint32_t sid, pid, oid;
@@ -360,7 +357,7 @@ private:
     TempResult
     join_o_(const TempResult &temp_result, const QueryItem &query_item) {
         TripletId tripletId;
-        QueryType type;
+        query_type type;
         std::tie(tripletId, type) = query_item;
 
         uint32_t sid, pid, oid;
@@ -383,7 +380,7 @@ private:
     TempResult
     filter_s_(const TempResult &temp_result, const QueryItem &query_item) {
         TripletId tripletId;
-        QueryType type;
+        query_type type;
         std::tie(tripletId, type) = query_item;
 
         uint32_t sid, pid, oid;
@@ -403,7 +400,7 @@ private:
     TempResult
     filter_o_(const TempResult &temp_result, const QueryItem &query_item) {
         TripletId tripletId;
-        QueryType type;
+        query_type type;
         std::tie(tripletId, type) = query_item;
 
         uint32_t sid, pid, oid;
@@ -423,7 +420,7 @@ private:
     TempResult
     filter_so_(const TempResult &temp_result, const QueryItem &query_item) {
         TripletId tripletId;
-        QueryType type;
+        query_type type;
         std::tie(tripletId, type) = query_item;
 
         uint32_t sid, pid, oid;
@@ -468,7 +465,7 @@ private:
     uint8_t var_idx_;
     std::unordered_map<uint16_t, std::string> id2var_;
     std::unordered_map<std::string, uint16_t> var2id_;
-    std::unordered_map<QueryType, std::function<TempResult(TempResult const&, QueryItem const&)>> query_selector_;
+    std::unordered_map<query_type, std::function<TempResult(TempResult const&, QueryItem const&)>> query_selector_;
     std::shared_ptr<DatabaseBuilder::Option> db_;
 };
 
@@ -478,7 +475,7 @@ SparqlQuery::~SparqlQuery() { }
 
 //ResultSet<std::string, std::string>
 //std::vector<std::unordered_map<std::string, std::string>>
-SparqlQuery::ResultSet
+inno::ResultSet
 SparqlQuery::query(SparqlParser &parser) {
     return impl_->query(parser);
 }
