@@ -9,15 +9,13 @@
 #ifndef RETRIEVE_SYSTEM_SPARQL_PARSER_HPP
 #define RETRIEVE_SYSTEM_SPARQL_PARSER_HPP
 
-#include <string>
-#include <vector>
 #include <memory>
+
+#include "common/type.hpp"
 
 namespace inno {
 
 class SparqlParser {
-public:
-    using Triplet = std::tuple<std::string, std::string, std::string>;
 public:
     SparqlParser();
     ~SparqlParser();

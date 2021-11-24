@@ -103,15 +103,15 @@ std::vector<std::string> SparqlParser::getQueryVariables() const {
     return impl_->query_variables;
 }
 
-std::vector<SparqlParser::Triplet> SparqlParser::getQueryTriplets() {
+std::vector<inno::Triplet> SparqlParser::getQueryTriplets() {
     return impl_->query_triplets_;
 }
 
-std::vector<SparqlParser::Triplet> SparqlParser::getQueryTriplets() const {
+std::vector<inno::Triplet> SparqlParser::getQueryTriplets() const {
     return impl_->query_triplets_;
 }
 
-std::vector<SparqlParser::Triplet> SparqlParser::getInsertTriplets() {
+std::vector<inno::Triplet> SparqlParser::getInsertTriplets() {
     return impl_->insert_triplets_;
 }
 
@@ -123,7 +123,7 @@ std::vector<std::string> SparqlParser::getPredicateIndexedList() {
     return impl_->predicates_indexed_list_;
 }
 
-std::vector<SparqlParser::Triplet> SparqlParser::getInsertTriplets() const {
+std::vector<inno::Triplet> SparqlParser::getInsertTriplets() const {
     return impl_->insert_triplets_;
 }
 
