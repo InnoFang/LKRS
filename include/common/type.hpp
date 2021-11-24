@@ -3,7 +3,7 @@
  * @CreateAt   : 2021/11/18
  * @Author     : Inno Fang
  * @Email      : innofang@yeah.net
- * @Description: 
+ * @Description: define some type
  */
 
 #ifndef PISANO_TYPE_HPP
@@ -27,9 +27,9 @@ enum query_type {
     JOIN_S,    // S is query variable, and O is not known
     JOIN_O,    // O is query variable, and S is not known
 
-    FIRST_S,   // that's the first query triplet for the whole query statement
-    FIRST_O,   // that's the first query triplet for the whole query statement
-    FIRST_SO,  // that's the first query triplet for the whole query statement
+    SINGLE_S,   // that's the first query triplet for the whole query statement
+    SINGLE_O,   // that's the first query triplet for the whole query statement
+    SINGLE_SO,  // that's the first query triplet for the whole query statement
 };
 
 using Triplet = std::tuple<std::string, std::string, std::string>;
