@@ -88,19 +88,25 @@ public:
         if (!p2id_.count(p)) {
             p2id_[p] = ++ predicate_size_;
             id2p_.emplace_back(p);
-            predicate_statistic_.emplace_back(1);
+            id2p_count_.emplace_back(1);
         } else {
-            predicate_statistic_[p2id_[p]]++;
+            id2p_count_[p2id_[p]]++;
         }
 
         if (!so2id_.count(s)) {
             so2id_[s] = ++ entity_size_;
             id2so_.emplace_back(s);
+            id2so_count_.emplace_back(1);
+        } else {
+            id2so_count_[so2id_[s]]++;
         }
 
         if (!so2id_.count(o)) {
             so2id_[o] = ++ entity_size_;
             id2so_.emplace_back(o);
+            id2so_count_.emplace_back(1);
+        } else {
+            id2so_count_[so2id_[o]]++;
         }
 
         predicate_indexed_storage_[p2id_[p]].insert({so2id_[s], so2id_[o]});
@@ -110,7 +116,7 @@ public:
     bool save() {
         if (db_name_.empty()) {
             spdlog::info("Save Failed! Haven't specified a database yet, "
-                         "you should call Create or Load before this operation.");
+                         "you should call Create or LoadAll before this operation.");
             return false;
         }
         return save(db_name_);
@@ -156,7 +162,32 @@ public:
         return true;
     }
 
-    void load(const std::string &db_name) {
+    void loadBasic(const std::string &db_name) {
+        fs::path db_path = fs::current_path().append(db_name + ".db");
+        if (!fs::exists(db_path)) {
+            return;
+        }
+        db_name_ = db_name;
+
+        load_basic_info(db_path / info_path_);
+
+        auto pid_load_task = std::async(std::launch::async,
+                                        &DatabaseBuilder::Impl::load_predicate_ids_,
+                                        this,
+                                        db_path / id_predicates_path_,
+                                        predicate_size_);
+
+        auto soid_load_task = std::async(std::launch::async,
+                                         &DatabaseBuilder::Impl::load_entity_ids_,
+                                         this,
+                                         db_path / id_entities_path_,
+                                         entity_size_);
+
+        pid_load_task.get();
+        soid_load_task.get();
+    }
+
+    void loadAll(const std::string &db_name) {
         fs::path db_path = fs::current_path().append(db_name + ".db");
         if (!fs::exists(db_path)) {
             spdlog::info("<{}> doesn't exist, create or build it firstly please.", db_path.string());
@@ -189,7 +220,7 @@ public:
         triplet_load_task.get();
     }
 
-    void load(const std::string &db_name, const std::vector<std::string> &predicate_indexed_list) {
+    void loadPartial(const std::string &db_name, const std::vector<std::string> &predicate_indexed_list) {
         fs::path db_path = fs::current_path().append(db_name + ".db");
         if (!fs::exists(db_path)) {
             return;
@@ -248,82 +279,82 @@ public:
         predicate_size_ = 0;
         entity_size_ = 0;
         triplet_size_ = 0;
-        predicate_statistic_.clear();
+        id2p_count_.clear();
         so2id_.clear();
         p2id_.clear();
         id2so_.clear();
         id2p_.clear();
         predicate_indexed_storage_.clear();
     }
+//
+//    uint32_t getPredicateId(const std::string &p) const {
+//        return p2id_.at(p);
+//    }
 
-    uint32_t getPredicateId(const std::string &p) const {
-        return p2id_.at(p);
-    }
+//    std::string getPredicateById(const uint32_t &pid) const {
+//        return id2p_[pid];
+//    }
 
-    std::string getPredicateById(const uint32_t &pid) const {
-        return id2p_[pid];
-    }
+//    uint32_t getEntityId(const std::string &so) const {
+//       return so2id_.at(so);
+//    }
+//
+//    uint32_t getPredicateCount(const std::string &p) const {
+//       return id2p_count_[p2id_.at(p)];
+//    }
 
-    uint32_t getEntityId(const std::string &so) const {
-       return so2id_.at(so);
-    }
+//    std::vector<uint32_t> getPredicateStatistics() {
+//        return id2p_count_;
+//    }
 
-    uint32_t getPredicateStatistic(const std::string &p) const {
-       return predicate_statistic_[p2id_.at(p)];
-    }
+//    std::string getEntityById(const uint32_t entity_id) const {
+//        return id2so_.at(entity_id);
+//    }
 
-    std::vector<uint32_t> getPredicateStatistics() {
-        return predicate_statistic_;
-    }
-
-    std::string getEntityById(const uint32_t entity_id) const {
-        return id2so_.at(entity_id);
-    }
-
-    std::unordered_set<uint32_t>
-    getSByPO(const uint32_t &pid, const uint32_t &oid) {
-        std::unordered_set<uint32_t> ret;
-        ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
-        for (const auto &item : predicate_indexed_storage_[pid]) {
-            if (item.second == oid) {
-                ret.insert(item.first);
-            }
-        }
-        return ret;
-    }
-
-    std::unordered_set<uint32_t>
-    getOBySP(const uint32_t &sid, const uint32_t &pid) {
-        std::unordered_set<uint32_t> ret;
-        ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
-        for (const auto &item : predicate_indexed_storage_[pid]) {
-            if (item.first == sid) {
-                ret.insert(item.second);
-            }
-        }
-        return ret;
-    }
-
-    const std::unordered_multimap<uint32_t, uint32_t> &
-    getS2OByP(const uint32_t &pid) {
-//        std::unordered_multimap<uint32_t, uint32_t> ret;
-//        ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
+//    std::unordered_set<uint32_t>
+//    getSByPO(const uint32_t &pid, const uint32_t &oid) {
+//        std::unordered_set<uint32_t> ret;
+//        ret.reserve(static_cast<size_t>(id2p_count_[pid] * 0.75));
 //        for (const auto &item : predicate_indexed_storage_[pid]) {
-//            ret.emplace(item.first, item.second);
+//            if (item.second == oid) {
+//                ret.insert(item.first);
+//            }
 //        }
 //        return ret;
-        return predicate_indexed_storage_[pid];
-    }
+//    }
 
-    std::unordered_multimap<uint32_t, uint32_t>
-    getO2SByP(const uint32_t &pid) {
-        std::unordered_multimap<uint32_t, uint32_t> ret;
-        ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
-        for (const auto &item : predicate_indexed_storage_[pid]) {
-            ret.emplace(item.second, item.first);
-        }
-        return ret;
-    }
+//    std::unordered_set<uint32_t>
+//    getOBySP(const uint32_t &sid, const uint32_t &pid) {
+//        std::unordered_set<uint32_t> ret;
+//        ret.reserve(static_cast<size_t>(id2p_count_[pid] * 0.75));
+//        for (const auto &item : predicate_indexed_storage_[pid]) {
+//            if (item.first == sid) {
+//                ret.insert(item.second);
+//            }
+//        }
+//        return ret;
+//    }
+//
+//    const std::unordered_multimap<uint32_t, uint32_t> &
+//    getS2OByP(const uint32_t &pid) {
+////        std::unordered_multimap<uint32_t, uint32_t> ret;
+////        ret.reserve(static_cast<size_t>(predicate_statistic_[pid] * 0.75));
+////        for (const auto &item : predicate_indexed_storage_[pid]) {
+////            ret.emplace(item.first, item.second);
+////        }
+////        return ret;
+//        return predicate_indexed_storage_[pid];
+//    }
+
+//    std::unordered_multimap<uint32_t, uint32_t>
+//    getO2SByP(const uint32_t &pid) {
+//        std::unordered_multimap<uint32_t, uint32_t> ret;
+//        ret.reserve(static_cast<size_t>(id2p_count_[pid] * 0.75));
+//        for (const auto &item : predicate_indexed_storage_[pid]) {
+//            ret.emplace(item.second, item.first);
+//        }
+//        return ret;
+//    }
 
 //    std::set<std::pair<uint32_t, uint32_t>> getSOByP(const uint32_t &pid) {
 //        return predicate_indexed_storage_[pid];
@@ -336,7 +367,8 @@ private:
         triplet_size_ = 0;
         id2so_.emplace_back("");
         id2p_.emplace_back("");
-        predicate_statistic_.emplace_back(0);
+        id2so_count_.emplace_back(0);
+        id2p_count_.emplace_back(0);
     }
 
     /* store database basic information */
@@ -346,9 +378,9 @@ private:
             std::string content = std::to_string(triplet_size_) + "\n" +
                                   std::to_string(predicate_size_) + "\n" +
                                   std::to_string(entity_size_) + "\n";
-            for (const uint32_t &item : predicate_statistic_) {
-                content += std::to_string(item) + " ";
-            }
+//            for (const uint32_t &item : id2p_count_) {
+//                content += std::to_string(item) + " ";
+//            }
             out.write(content.c_str(), content.size());
             out.close();
         } else {
@@ -368,10 +400,10 @@ private:
             in >> triplet_size_
                >> predicate_size_
                >> entity_size_;
-            predicate_statistic_.assign(predicate_size_ + 1, 0);
-            for (uint32_t  &item : predicate_statistic_) {
-                in >> item;
-            }
+//            id2p_count_.assign(predicate_size_ + 1, 0);
+//            for (uint32_t  &item : id2p_count_) {
+//                in >> item;
+//            }
             in.close();
         } else {
             spdlog::error("load_basic_info function occurs problem, "
@@ -387,6 +419,7 @@ private:
         if (out.is_open()) {
             for (size_t i = 1; i <= predicate_size_; ++ i) {
                 std::string item = std::to_string(i) + "\t" +
+                                   std::to_string(id2p_count_[i]) + "\t" +
                                    id2p_[i] + "\n";
                 out.write(item.c_str(), item.size());
             }
@@ -405,18 +438,21 @@ private:
         p2id_.reserve(static_cast<size_t>(predicate_size * 0.75));
         id2p_.clear();
         id2p_.resize(predicate_size + 1);
+        id2p_count_.clear();
+        id2p_count_.resize(predicate_size + 1);
 
         fs::ifstream in(path, fs::ifstream::in | fs::ifstream::binary);
         fs::ifstream::sync_with_stdio(false);
         in.tie(nullptr);
         if (in.is_open()) {
             for (size_t i = 1; i <= predicate_size_; ++ i) {
-                uint32_t pid;
+                uint32_t pid, pid_count;
                 std::string predicate;
-                in >> pid;
+                in >> pid >> pid_count;
                 in.ignore();
                 std::getline(in, predicate);
                 id2p_[pid] = predicate;
+                id2p_count_[pid] = pid_count;
                 p2id_[predicate] = pid;
             }
             in.close();
@@ -435,6 +471,7 @@ private:
         if (out.is_open()) {
             for (size_t i = 1; i <= entity_size_; ++ i) {
                 std::string item = std::to_string(i) + "\t" +
+                                   std::to_string(id2so_count_[i]) + "\t" +
                                    id2so_[i] + "\n";
                 out.write(item.c_str(), item.size());
             }
@@ -453,18 +490,21 @@ private:
         so2id_.reserve(static_cast<size_t>(entity_size * 0.75));
         id2so_.clear();
         id2so_.resize(entity_size + 1);
+        id2so_count_.clear();
+        id2so_count_.resize(entity_size + 1);
 
         fs::ifstream in(path, fs::ifstream::in | fs::ifstream::binary);
         fs::ifstream::sync_with_stdio(false);
         in.tie(nullptr);
         if (in.is_open()) {
             for (size_t i = 1; i <= entity_size_; ++ i) {
-                uint32_t soid;
+                uint32_t soid, soid_count;
                 std::string entity;
-                in >> soid;
+                in >> soid >> soid_count;
                 in.ignore();
                 std::getline(in, entity);
                 id2so_[soid] = entity;
+                id2so_count_[soid] = soid_count;
                 so2id_[entity] = soid;
             }
             in.close();
@@ -540,7 +580,7 @@ private:
             in.tie(nullptr);
 
             if (in.is_open()) {
-                predicate_indexed_storage_[pid].reserve(predicate_statistic_[pid]);
+                predicate_indexed_storage_[pid].reserve(id2p_count_[pid]);
                 while (!in.eof()) {
                     uint32_t sid, oid;
                     in >> sid >> oid;
@@ -585,7 +625,7 @@ private:
             in.tie(nullptr);
 
             if (in.is_open()) {
-                predicate_indexed_storage_[pid].reserve(predicate_statistic_[pid]);
+                predicate_indexed_storage_[pid].reserve(id2p_count_[pid]);
                 while (!in.eof()) {
                     uint32_t sid, oid;
                     in >> sid >> oid;
@@ -623,7 +663,7 @@ private:
         }
     }
 
-private:
+public:
     std::string db_name_;
     uint32_t predicate_size_;
     uint32_t entity_size_;
@@ -634,12 +674,15 @@ private:
     fs::path triplet_path_;
     std::unordered_map<std::string, uint32_t> so2id_;
     std::unordered_map<std::string, uint32_t> p2id_;
+//    phmap::flat_hash_map<std::string, uint32_t> so2id_;
+//    phmap::flat_hash_map<std::string, uint32_t> p2id_;
     std::vector<std::string> id2so_;
     std::vector<std::string> id2p_;
-    std::vector<uint32_t> predicate_statistic_;
+    std::vector<uint32_t> id2so_count_;
+    std::vector<uint32_t> id2p_count_;
 
     std::unordered_map<uint32_t, entity_pair_set> predicate_indexed_storage_;
-//    std::unordered_map<uint32_t, entity_pair_set> reversed_cache_indexed;
+//    phmap::flat_hash_map<uint32_t, entity_pair_set> predicate_indexed_storage_;
 };
 
 DatabaseBuilder::DatabaseBuilder() = default;
@@ -653,17 +696,23 @@ DatabaseBuilder::Create(const std::string &db_name, const std::string &data_file
     return std::make_shared<DatabaseBuilder::Option>(impl);
 }
 
-std::shared_ptr<DatabaseBuilder::Option>
-DatabaseBuilder::Load(const std::string &db_name) {
+std::shared_ptr<DatabaseBuilder::Option> DatabaseBuilder::LoadBasic(const std::string &db_name) {
     std::shared_ptr<Impl> impl(new Impl());
-    impl->load(db_name);
+    impl->loadBasic(db_name);
+    return std::make_shared<DatabaseBuilder::Option>(impl);
+}
+
+std::shared_ptr<DatabaseBuilder::Option>
+DatabaseBuilder::LoadAll(const std::string &db_name) {
+    std::shared_ptr<Impl> impl(new Impl());
+    impl->loadAll(db_name);
     return std::make_shared<DatabaseBuilder::Option>(impl);
 }
 
 std::shared_ptr<DatabaseBuilder::Option>
 DatabaseBuilder::LoadPartial(const std::string &db_name, const std::vector<std::string> &predicate_indexed_list) {
     std::shared_ptr<Impl> impl(new Impl());
-    impl->load(db_name, predicate_indexed_list);
+    impl->loadPartial(db_name, predicate_indexed_list);
     return std::make_shared<DatabaseBuilder::Option>(impl);
 }
 
@@ -692,63 +741,100 @@ bool DatabaseBuilder::Option::insert(const std::vector<std::tuple<std::string, s
 }
 
 uint32_t DatabaseBuilder::Option::getPredicateId(const std::string &predicate) const {
-    return impl_->getPredicateId(predicate);
+    return impl_->p2id_.at(predicate);
 }
 
 uint32_t DatabaseBuilder::Option::getPredicateId(const std::string &predicate) {
-    return impl_->getPredicateId(predicate);
+    return impl_->p2id_.at(predicate);
+//    return impl_->getPredicateId(predicate);
 }
 
 std::string DatabaseBuilder::Option::getPredicateById(const uint32_t &pid) {
-    return impl_->getPredicateById(pid);
+        return impl_->id2p_[pid];
 }
 
-uint32_t DatabaseBuilder::Option::getPredicateStatistic(const std::string &p) const {
-    return impl_->getPredicateStatistic(p);
+uint32_t DatabaseBuilder::Option::getPredicateCount(const std::string &predicate) const {
+    return impl_->id2p_count_[impl_->p2id_.at(predicate)];
+//    return impl_->getPredicateCount(predicate);
+}
+
+uint32_t DatabaseBuilder::Option::getPredicateCount(const std::string &predicate) {
+    return impl_->id2p_count_[impl_->p2id_.at(predicate)];
+}
+
+uint32_t DatabaseBuilder::Option::getEntityCount(const std::string &entity) const {
+    return impl_->id2so_count_[impl_->so2id_.at(entity)];
+}
+
+uint32_t DatabaseBuilder::Option::getEntityCount(const std::string &entity) {
+    return impl_->id2so_count_[impl_->so2id_.at(entity)];
 }
 
 std::vector<uint32_t> DatabaseBuilder::Option::getPredicateStatistics() {
-    return impl_->getPredicateStatistics();
+    return impl_->id2p_count_;
 }
 
 uint32_t DatabaseBuilder::Option::getEntityId(const std::string &entity) {
-    return impl_->getEntityId(entity);
+    return impl_->so2id_.at(entity);
+//    return impl_->getEntityId(entity);
 }
 
 uint32_t DatabaseBuilder::Option::getEntityId(const std::string &entity) const {
-    return impl_->getEntityId(entity);
+    return impl_->so2id_.at(entity);
+//    return impl_->getEntityId(entity);
 }
 
 std::string DatabaseBuilder::Option::getEntityById(const uint32_t entity_id) {
-    return impl_->getEntityById(entity_id);
+//    return impl_->getEntityById(entity_id);
+        return impl_->id2so_.at(entity_id);
 }
 
 std::string DatabaseBuilder::Option::getEntityById(uint32_t entity_id) const {
-    return impl_->getEntityById(entity_id);
-}
-
-uint32_t DatabaseBuilder::Option::getPredicateStatistic(const std::string &p) {
-    return impl_->getPredicateStatistic(p);
+//    return impl_->getEntityById(entity_id);
+    return impl_->id2so_.at(entity_id);
 }
 
 std::unordered_set<uint32_t>
 DatabaseBuilder::Option::getSByPO(const uint32_t &pid, const uint32_t &oid) {
-    return impl_->getSByPO(pid, oid);
+//    return impl_->getSByPO(pid, oid);
+    std::unordered_set<uint32_t> ret;
+    ret.reserve(static_cast<size_t>(impl_->id2p_count_[pid] * 0.75));
+    for (const auto &item : impl_->predicate_indexed_storage_[pid]) {
+        if (item.second == oid) {
+            ret.insert(item.first);
+        }
+    }
+    return ret;
 }
 
 std::unordered_set<uint32_t>
 DatabaseBuilder::Option::getOBySP(const uint32_t &sid, const uint32_t &pid) {
-    return impl_->getOBySP(sid, pid);
+//    return impl_->getOBySP(sid, pid);
+    std::unordered_set<uint32_t> ret;
+    ret.reserve(static_cast<size_t>(impl_->id2p_count_[pid] * 0.75));
+    for (const auto &item : impl_->predicate_indexed_storage_[pid]) {
+        if (item.first == sid) {
+            ret.insert(item.second);
+        }
+    }
+    return ret;
 }
 
 const std::unordered_multimap<uint32_t, uint32_t> &
 DatabaseBuilder::Option::getS2OByP(const uint32_t &pid) {
-    return impl_->getS2OByP(pid);
+//    return impl_->getS2OByP(pid);
+    return impl_->predicate_indexed_storage_[pid];
 }
 
 std::unordered_multimap<uint32_t, uint32_t>
 DatabaseBuilder::Option::getO2SByP(const uint32_t &pid) {
-    return impl_->getO2SByP(pid);
+//    return impl_->getO2SByP(pid);
+    std::unordered_multimap<uint32_t, uint32_t> ret;
+    ret.reserve(static_cast<size_t>(impl_->id2p_count_[pid] * 0.75));
+    for (const auto &item : impl_->predicate_indexed_storage_[pid]) {
+        ret.emplace(item.second, item.first);
+    }
+    return ret;
 }
 
 //std::set<std::pair<uint32_t, uint32_t>> DatabaseBuilder::Option::getSOByP(const uint32_t &pid) {

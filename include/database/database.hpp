@@ -17,12 +17,9 @@
 #ifndef RETRIEVE_SYSTEM_DATABASE_HPP
 #define RETRIEVE_SYSTEM_DATABASE_HPP
 
-#include <set>
-#include <string>
 #include <memory>
-#include <vector>
-#include <unordered_map>
-#include <unordered_set>
+
+#include "common/type.hpp"
 
 namespace inno {
 
@@ -41,7 +38,10 @@ public:
     static std::shared_ptr<DatabaseBuilder::Option> Create(const std::string &db_name, const std::string &data_file);
 
     /* load a RDF database named @db_name */
-    static std::shared_ptr<DatabaseBuilder::Option> Load(const std::string &db_name);
+    static std::shared_ptr<DatabaseBuilder::Option>
+    LoadBasic(const std::string &db_name);
+    static std::shared_ptr<DatabaseBuilder::Option>
+    LoadAll(const std::string &db_name);
     static std::shared_ptr<DatabaseBuilder::Option>
     LoadPartial(const std::string &db_name, const std::vector<std::string> &predicate_indexed_list);
 
@@ -75,17 +75,26 @@ public:
         std::string getEntityById(uint32_t entity_id) const;
 
         /* get the statistics of pid corresponding to predicate */
-        uint32_t getPredicateStatistic(const std::string &predicate) const;
-        uint32_t getPredicateStatistic(const std::string &predicate);
+        uint32_t getPredicateCount(const std::string &predicate) const;
+        uint32_t getPredicateCount(const std::string &predicate);
+
+        /* get the statistics of soid corresponding to entity */
+        uint32_t getEntityCount(const std::string &entity) const;
+        uint32_t getEntityCount(const std::string &entity);
 
         std::vector<uint32_t> getPredicateStatistics();
 
         /* For querying */
-        std::unordered_set<uint32_t> getSByPO(const uint32_t &pid, const uint32_t &oid);
-        std::unordered_set<uint32_t> getOBySP(const uint32_t &sid, const uint32_t &pid);
+        std::unordered_set<uint32_t>
+        getSByPO(const uint32_t &pid, const uint32_t &oid);
 
-        const std::unordered_multimap<uint32_t, uint32_t> &getS2OByP(const uint32_t &pid);
-        std::unordered_multimap<uint32_t, uint32_t> getO2SByP(const uint32_t &pid);
+        std::unordered_set<uint32_t>
+        getOBySP(const uint32_t &sid, const uint32_t &pid);
+
+        const std::unordered_multimap<uint32_t, uint32_t> &
+        getS2OByP(const uint32_t &pid);
+        std::unordered_multimap<uint32_t, uint32_t>
+        getO2SByP(const uint32_t &pid);
 
 //        std::set<std::pair<uint32_t, uint32_t>> getSOByP(const uint32_t &pid);
 
