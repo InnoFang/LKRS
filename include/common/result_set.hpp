@@ -11,6 +11,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <spdlog/spdlog.h>
 
 namespace inno {
 
@@ -19,7 +20,6 @@ class ResultSet {
 public:
     using key_type = Key;
     using value_type = Value;
-private:
     using item_type = std::unordered_map<key_type, value_type>;
 
 public:
@@ -35,17 +35,27 @@ public:
     decltype(auto) end() { return result_.end(); }
     decltype(auto) end() const { return result_.end(); }
 
+
     decltype(auto) reserve(const std::size_t &size) {
         return result_.resize(size);
+    }
+
+    decltype(auto) emplace_back(item_type &item) {
+        return result_.emplace_back(item);
     }
 
     decltype(auto) emplace_back(const item_type &item) {
         return result_.emplace_back(item);
     }
 
-    decltype(auto) push_back(const item_type &item) {
+    decltype(auto) push_back(item_type item) {
+//        spdlog::info("item size: {}", item.size());
         return result_.push_back(item);
     }
+
+//    decltype(auto) push_back(const item_type &item) {
+//        return result_.push_back(item);
+//    }
 
     decltype(auto) erase(const item_type &item) {
         return result_.erase(item);
@@ -55,7 +65,7 @@ public:
         return result_.clear();
     }
 
-    std::size_t size() {
+    std::size_t size() const {
         return result_.size();
     }
 
@@ -76,16 +86,17 @@ public:
     }
 
     ResultSet<key_type, value_type> &operator=(const ResultSet<key_type, value_type> &other) {
-        if (this != other) {
-            result_ = other.result_;
-        }
+//        if (this != other) {
+            result_.assign(other.result_.begin(), other.result_.end());
+        spdlog::info("&operator= other.result first size = {}", other.result_[0].size());
+//        }
         return *this;
     }
 
     ResultSet<key_type, value_type> &operator=(ResultSet<key_type, value_type> &&other) noexcept {
-        if (this != &other) {
-            result_ = std::move(other.result_);
-        }
+//        if (this != &other) {
+            result_.swap(other.result_);
+//        }
         return *this;
     }
 
