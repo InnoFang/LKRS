@@ -6,17 +6,18 @@
  * @Description: 
  */
 
-#include <iostream>
-#include <string>
-#include <unordered_set>
 #include <set>
+#include <string>
+#include <utility>
+#include <fstream>
+#include <iostream>
+#include <unordered_set>
 
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include <utility>
 
 #include "query/sparql_query.hpp"
 
@@ -372,6 +373,34 @@ void change(const httplib::Request &req, httplib::Response &res) {
     res.set_content(j.dump(2), "text/plain;charset=utf-8");
 }
 
+
+void upload(const httplib::Request &req, httplib::Response &res) {
+    res.set_header("Access-Control-Allow-Origin", "*");
+    spdlog::info("Catch upload request from http://{}:{}", req.remote_addr, req.remote_port);
+
+    nlohmann::json j;
+
+    if (!req.has_file("rdf_file")) {
+        j["code"] = 4;
+        j["message"] = "Upload file failed";
+        res.set_content(j.dump(2), "text/plain;charset=utf-8");
+        return;
+    }
+
+    auto size = req.files.size();
+    auto rdf_file = req.get_file_value("rdf_file");
+
+    {
+        std::ofstream ofs(rdf_file.filename);
+        ofs << rdf_file.content;
+    }
+
+    j["code"] = 1;
+    j["message"] = "Upload file successfully. file name is " + rdf_file.filename
+                   + ", size is " + std::to_string(size);
+    res.set_content(j.dump(2), "text/plain;charset=utf-8");
+}
+
 int main(int argc, char **argv) {
     opt::options_description desc("psoHttp");
     desc.add_options()
@@ -402,7 +431,7 @@ int main(int argc, char **argv) {
     sparqlQuery = std::make_unique<inno::SparqlQuery>(db);
 
     httplib::Server svr;
-
+    svr.set_base_dir("./");
 
     std::string base_url = "/pisano";
     // connect
@@ -419,6 +448,7 @@ int main(int argc, char **argv) {
     svr.Get(base_url + "/list", list);      // list RDF
     svr.Get(base_url + "/info", info);      // show RDF information
     svr.Get(base_url + "/visualize", visualize); // visualize RDF data
+    svr.Post(base_url + "/upload", upload); // upload RDF file
     svr.Post(base_url + "/query", query);   // query on RDF
     svr.Post(base_url + "/insert", insert); // insert new data into RDF
 
