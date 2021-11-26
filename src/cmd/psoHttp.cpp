@@ -312,10 +312,7 @@ void query(const httplib::Request &req, httplib::Response &res) {
     if (!req.has_param("sparql")) {
         return;
     }
-
     std::string sparql = req.get_param_value("sparql");
-    spdlog::info("Receive SPARQL: {}", sparql);
-
     nlohmann::json json;
     json["data"] = execute_query(sparql);
     res.set_content(json.dump(2), "text/plain;charset=utf-8");
@@ -336,16 +333,48 @@ void insert(const httplib::Request &req, httplib::Response &res) {
     nlohmann::json j;
     j["code"] = 1;
     if (status) {
-        j["message"] = "success";
+        j["message"] = "Success";
     } else {
-        j["message"] = "failed";
+        j["message"] = "Failed";
     }
     res.set_content(j.dump(2), "text/plain;charset=utf-8");
 }
 
-void change(const httplib::Request &req, httplib::Response &res) {
+void create(const httplib::Request &req, httplib::Response &res) {
     res.set_header("Access-Control-Allow-Origin", "*");
-    spdlog::info("Catch change request from http://{}:{}", req.remote_addr, req.remote_port);
+    spdlog::info("Catch create request from http://{}:{}", req.remote_addr, req.remote_port);
+
+    nlohmann::json j;
+    if (!req.has_param("rdf")) {
+        j["code"] = 5;
+        j["message"] = "Didn't specify a rdf name";
+        res.set_content(j.dump(2), "text/plain;charset=utf-8");
+        return;
+    }
+    if (!req.has_param("file_name")) {
+        j["code"] = 6;
+        j["message"] = "Didn't specify a data file name";
+        res.set_content(j.dump(2), "text/plain;charset=utf-8");
+        return;
+    }
+
+
+    std::string rdf = req.get_param_value("rdf");
+    std::string file_name = req.get_param_value("file_name");
+    spdlog::info("rdf: {}, file_name: {}", rdf, file_name);
+    db = inno::DatabaseBuilder::Create(rdf, file_name);
+    sparqlQuery = std::make_unique<inno::SparqlQuery>(db);
+    db_name = rdf;
+
+    j["code"] = 1;
+    j["message"] = "Create " + rdf + " successfully!";
+    spdlog::info("rdf have been changed into <{}>.", rdf);
+    res.set_content(j.dump(2), "text/plain;charset=utf-8");
+}
+
+void switchRDF(const httplib::Request &req, httplib::Response &res) {
+    res.set_header("Access-Control-Allow-Origin", "*");
+    spdlog::info("Catch switch request from http://{}:{}", req.remote_addr, req.remote_port);
 
     nlohmann::json j;
     if (!req.has_param("rdf")) {
@@ -358,7 +387,7 @@ void change(const httplib::Request &req, httplib::Response &res) {
     std::string rdf = req.get_param_value("rdf");
     if (rdf == db_name) {
         j["code"] = 3;
-        j["message"] = "same RDF, no need to change";
+        j["message"] = "Same RDF, no need to switch";
         res.set_content(j.dump(2), "text/plain;charset=utf-8");
         return;
     }
@@ -368,8 +397,8 @@ void change(const httplib::Request &req, httplib::Response &res) {
     db_name = rdf;
 
     j["code"] = 1;
-    j["message"] = "RDF have been changed to " + rdf;
-    spdlog::info("RDf have been changed into <{}>.", rdf);
+    j["message"] = "RDF have been switched to " + rdf;
+    spdlog::info("RDF have been switched into <{}>.", rdf);
     res.set_content(j.dump(2), "text/plain;charset=utf-8");
 }
 
@@ -440,11 +469,12 @@ int main(int argc, char **argv) {
 
         nlohmann::json j;
         j["code"] = 1;
-        j["message"] = "connected";
+        j["message"] = "Connected";
         res.set_content(j.dump(2), "text/plain");
     });
 
-    svr.Post(base_url + "/change", change); // change RDF
+    svr.Post(base_url + "/create", create); // create RDF
+    svr.Post(base_url + "/switch", switchRDF); // switch RDF
     svr.Get(base_url + "/list", list);      // list RDF
     svr.Get(base_url + "/info", info);      // show RDF information
     svr.Get(base_url + "/visualize", visualize); // visualize RDF data
@@ -458,7 +488,7 @@ int main(int argc, char **argv) {
 
         nlohmann::json j;
         j["code"] = 1;
-        j["message"] = "disconnected";
+        j["message"] = "Disconnected";
         svr.stop();
         res.set_content(j.dump(2), "text/plain;charset=utf-8");
     });
