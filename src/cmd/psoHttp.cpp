@@ -28,6 +28,7 @@ using ResultSet = std::vector<std::unordered_map<std::string, std::string>>;
 std::shared_ptr<inno::DatabaseBuilder::Option> db;
 std::unique_ptr<inno::SparqlQuery> sparqlQuery;
 inno::SparqlParser parser;
+std::string db_name;
 
 std::vector<std::string> listRDFdb() {
     std::vector<std::string> rdf_db_list;
@@ -121,9 +122,7 @@ void visualize(const httplib::Request &req, httplib::Response &res) {
 
     std::vector<std::string> categories;
     for (size_t pid = 1; pid < predicate_stat.size(); pid++) {
-        spdlog::info("test pid: {}", pid);
         categories.push_back(db->getPredicateById(pid));
-        spdlog::info("pid:{} = {}", pid, db->getPredicateById(pid));
     }
     // insert object node;
     for (size_t pid = 1; pid < predicate_stat.size(); pid++) {
@@ -322,8 +321,9 @@ void query(const httplib::Request &req, httplib::Response &res) {
 }
 
 void insert(const httplib::Request &req, httplib::Response &res) {
-    spdlog::info("Catch Insert Request.");
     res.set_header("Access-Control-Allow-Origin", "*");
+    spdlog::info("Catch Insert Request.");
+
     if (!req.has_param("sparql")) {
         return;
     }
@@ -332,11 +332,44 @@ void insert(const httplib::Request &req, httplib::Response &res) {
     spdlog::info("Receive SPARQL: {}", sparql);
 
     bool status = execute_insert(sparql);
+    nlohmann::json j;
+    j["code"] = 1;
     if (status) {
-        res.set_content("successfully", "text/plain");
+        j["message"] = "success";
     } else {
-        res.set_content("failed", "text/plain;charset=utf-8");
+        j["message"] = "failed";
     }
+    res.set_content(j.dump(2), "text/plain;charset=utf-8");
+}
+
+void change(const httplib::Request &req, httplib::Response &res) {
+    res.set_header("Access-Control-Allow-Origin", "*");
+    spdlog::info("Catch change request from http://{}:{}", req.remote_addr, req.remote_port);
+
+    nlohmann::json j;
+    if (!req.has_param("rdf")) {
+        j["code"] = 2;
+        j["message"] = "Didn't specify a RDF name";
+        res.set_content(j.dump(2), "text/plain;charset=utf-8");
+        return;
+    }
+
+    std::string rdf = req.get_param_value("rdf");
+    if (rdf == db_name) {
+        j["code"] = 3;
+        j["message"] = "same RDF, no need to change";
+        res.set_content(j.dump(2), "text/plain;charset=utf-8");
+        return;
+    }
+
+    db = inno::DatabaseBuilder::LoadAll(rdf);
+    sparqlQuery = std::make_unique<inno::SparqlQuery>(db);
+    db_name = rdf;
+
+    j["code"] = 1;
+    j["message"] = "RDF have been changed to " + rdf;
+    spdlog::info("RDf have been changed into <{}>.", rdf);
+    res.set_content(j.dump(2), "text/plain;charset=utf-8");
 }
 
 int main(int argc, char **argv) {
@@ -363,31 +396,41 @@ int main(int argc, char **argv) {
     std::string host = vm["host"].as<std::string>();
     int port = vm["port"].as<int>();
     spdlog::info("Running at:  http://{}:{}", host, port);
-    std::string db_name = vm["db_name"].as<std::string>();
+    db_name = vm["db_name"].as<std::string>();
 
     db = inno::DatabaseBuilder::LoadAll(db_name);
     sparqlQuery = std::make_unique<inno::SparqlQuery>(db);
 
     httplib::Server svr;
 
-    std::string base = "/" + db_name;
 
+    std::string base_url = "/pisano";
     // connect
-    svr.Get(base, [&](const httplib::Request &req, httplib::Response &res){
+    svr.Get(base_url, [&](const httplib::Request &req, httplib::Response &res){
         spdlog::info("connection from http://{}:{}", req.remote_addr, req.remote_port);
-        res.set_content("connected", "text/plain");
+
+        nlohmann::json j;
+        j["code"] = 1;
+        j["message"] = "connected";
+        res.set_content(j.dump(2), "text/plain");
     });
 
-    svr.Get("/list", list);
-    svr.Get(base + "/info", info);
-    svr.Get(base + "/visualize", visualize);
-    svr.Post(base + "/query", query);
-    svr.Post(base + "/insert", insert);
+    svr.Post(base_url + "/change", change); // change RDF
+    svr.Get(base_url + "/list", list);      // list RDF
+    svr.Get(base_url + "/info", info);      // show RDF information
+    svr.Get(base_url + "/visualize", visualize); // visualize RDF data
+    svr.Post(base_url + "/query", query);   // query on RDF
+    svr.Post(base_url + "/insert", insert); // insert new data into RDF
 
     // disconnect
-    svr.Get(base + "/disconnect", [&](const httplib::Request &req, httplib::Response &res) {
+    svr.Get(base_url + "/disconnect", [&](const httplib::Request &req, httplib::Response &res) {
+        spdlog::info("disconnection from http://{}:{}", req.remote_addr, req.remote_port);
+
+        nlohmann::json j;
+        j["code"] = 1;
+        j["message"] = "disconnected";
         svr.stop();
-        res.set_content("disconnect", "text/plain;charset=utf-8");
+        res.set_content(j.dump(2), "text/plain;charset=utf-8");
     });
     svr.listen(host.c_str(), port);
     return 0;
