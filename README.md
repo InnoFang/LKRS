@@ -1,6 +1,10 @@
 # PISANO
 
-PISANO, that's **P**redicate-**I**ndexed **S**ubject **AN**d **O**bject
+A scalable lightweight RDF knowledge retrieval system
+
+> PISANO, that's **P**redicate-**I**ndexed **S**ubject **AN**d **O**bject
+> 
+> **this is a temporary name**
 
 ![](https://img.shields.io/badge/Conan-1.42-brightgreen)
 
