@@ -9,19 +9,16 @@
 #ifndef RETRIEVE_SYSTEM_SPARQL_QUERY_HPP
 #define RETRIEVE_SYSTEM_SPARQL_QUERY_HPP
 
-#include <vector>
-#include <string>
 #include <memory>
-#include <unordered_map>
 
 #include "database/database.hpp"
 #include "parser/sparql_parser.hpp"
+#include "common/type.hpp"
 
 namespace inno {
 class SparqlQuery {
 
 public:
-    using ResultSet = std::set<std::vector<std::string>>;
 
 public:
     explicit SparqlQuery(const std::shared_ptr<DatabaseBuilder::Option> &db);
