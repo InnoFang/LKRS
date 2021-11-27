@@ -39,7 +39,11 @@ public:
 
     void create(const std::string &db_name, const std::string &data_file) {
         db_name_ = db_name;
-        insertFromFile(data_file);
+        if (fs::exists(data_file)) {
+            insertFromFile(data_file);
+        } else {
+            spdlog::info("data file path '{}' doesn't exist.", data_file);
+        }
     }
 
     bool insertFromFile(const std::string &data_file) {
@@ -163,6 +167,8 @@ public:
     }
 
     void loadBasic(const std::string &db_name) {
+        initialize_();
+
         fs::path db_path = fs::current_path().append(db_name + ".db");
         if (!fs::exists(db_path)) {
             return;
@@ -188,6 +194,8 @@ public:
     }
 
     void loadAll(const std::string &db_name) {
+        initialize_();
+
         fs::path db_path = fs::current_path().append(db_name + ".db");
         if (!fs::exists(db_path)) {
             spdlog::info("<{}> doesn't exist, create or build it firstly please.", db_path.string());
@@ -221,6 +229,8 @@ public:
     }
 
     void loadPartial(const std::string &db_name, const std::vector<std::string> &predicate_indexed_list) {
+        initialize_();
+
         fs::path db_path = fs::current_path().append(db_name + ".db");
         if (!fs::exists(db_path)) {
             return;
@@ -753,20 +763,20 @@ std::string DatabaseBuilder::Option::getPredicateById(const uint32_t &pid) {
         return impl_->id2p_[pid];
 }
 
-uint32_t DatabaseBuilder::Option::getPredicateCount(const std::string &predicate) const {
+uint32_t DatabaseBuilder::Option::getPredicateCountBy(const std::string &predicate) const {
     return impl_->id2p_count_[impl_->p2id_.at(predicate)];
 //    return impl_->getPredicateCount(predicate);
 }
 
-uint32_t DatabaseBuilder::Option::getPredicateCount(const std::string &predicate) {
+uint32_t DatabaseBuilder::Option::getPredicateCountBy(const std::string &predicate) {
     return impl_->id2p_count_[impl_->p2id_.at(predicate)];
 }
 
-uint32_t DatabaseBuilder::Option::getEntityCount(const std::string &entity) const {
+uint32_t DatabaseBuilder::Option::getEntityCountBy(const std::string &entity) const {
     return impl_->id2so_count_[impl_->so2id_.at(entity)];
 }
 
-uint32_t DatabaseBuilder::Option::getEntityCount(const std::string &entity) {
+uint32_t DatabaseBuilder::Option::getEntityCountBy(const std::string &entity) {
     return impl_->id2so_count_[impl_->so2id_.at(entity)];
 }
 
@@ -835,6 +845,30 @@ DatabaseBuilder::Option::getO2SByP(const uint32_t &pid) {
         ret.emplace(item.second, item.first);
     }
     return ret;
+}
+
+uint32_t DatabaseBuilder::Option::getPredicateSize() {
+    return impl_->predicate_size_;
+}
+
+uint32_t DatabaseBuilder::Option::getPredicateSize() const {
+    return impl_->predicate_size_;
+}
+
+uint32_t DatabaseBuilder::Option::getEntitySize() {
+    return impl_->entity_size_;
+}
+
+uint32_t DatabaseBuilder::Option::getEntitySize() const {
+    return impl_->entity_size_;
+}
+
+uint32_t DatabaseBuilder::Option::getTripletSize() {
+    return impl_->triplet_size_;
+}
+
+uint32_t DatabaseBuilder::Option::getTripletSize() const {
+    return impl_->triplet_size_;
 }
 
 //std::set<std::pair<uint32_t, uint32_t>> DatabaseBuilder::Option::getSOByP(const uint32_t &pid) {

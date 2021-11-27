@@ -62,6 +62,14 @@ public:
         bool insert(const std::string &subject, const std::string &predicate, const std::string &object);
         bool insert(const std::vector<std::tuple<std::string, std::string, std::string>> &triplets);
 
+        /* get basic information of RDF db */
+        uint32_t getPredicateSize();
+        uint32_t getEntitySize();
+        uint32_t getTripletSize();
+        uint32_t getPredicateSize() const;
+        uint32_t getEntitySize() const ;
+        uint32_t getTripletSize() const ;
+
         /* get pid corresponding to predicate */
         uint32_t getPredicateId(const std::string &predicate);
         uint32_t getPredicateId(const std::string &predicate) const;
@@ -75,12 +83,12 @@ public:
         std::string getEntityById(uint32_t entity_id) const;
 
         /* get the statistics of pid corresponding to predicate */
-        uint32_t getPredicateCount(const std::string &predicate) const;
-        uint32_t getPredicateCount(const std::string &predicate);
+        uint32_t getPredicateCountBy(const std::string &predicate) const;
+        uint32_t getPredicateCountBy(const std::string &predicate);
 
         /* get the statistics of soid corresponding to entity */
-        uint32_t getEntityCount(const std::string &entity) const;
-        uint32_t getEntityCount(const std::string &entity);
+        uint32_t getEntityCountBy(const std::string &entity) const;
+        uint32_t getEntityCountBy(const std::string &entity);
 
         std::vector<uint32_t> getPredicateStatistics();
 
