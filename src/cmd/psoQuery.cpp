@@ -78,12 +78,12 @@ int main(int argc, char** argv) {
 
         std::tie(db, used_time) =
                 inno::timeit(inno::DatabaseBuilder::LoadPartial, dbname, parser.getPredicateIndexedList());
-        spdlog::info("<{}> load done, used {} ms.", dbname, used_time);
+        spdlog::info("<{}> loadAll done, used {} ms.", dbname, used_time);
 
         inno::SparqlQuery sparqlQuery(db);
         execute_query(sparqlQuery, parser);
     } else {
-        std::tie(db, used_time) = inno::timeit(inno::DatabaseBuilder::Load, dbname);
+        std::tie(db, used_time) = inno::timeit(inno::DatabaseBuilder::LoadAll, dbname);
         spdlog::info("<{}> load done, used {} ms.", dbname, used_time);
 
         inno::SparqlQuery sparqlQuery(db);
@@ -102,5 +102,3 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-// D:\Projects\Cpp\retrieve-system\data\lubm\lubm_q1.sql
-// D:\Projects\Cpp\retrieve-system\data\watdiv10m\C10.in
