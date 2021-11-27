@@ -63,7 +63,7 @@ TEST_F(SparqlParserTest, ParseSparqlInCRLF) {
     auto triplets = sparqlParser.getQueryTriplets();
     EXPECT_EQ(2, triplets.size());
 
-    std::vector<inno::SparqlParser::Triplet> answer = {
+    std::vector<inno::Triplet> answer = {
             {"?v0", "<http://db.uwaterloo.ca/~galuc/wsdbm/likes>", "?v1"},
             { "?v0", "<http://db.uwaterloo.ca/~galuc/wsdbm/subscribes>", "<http://db.uwaterloo.ca/~galuc/wsdbm/Website36>"},
     };
@@ -99,7 +99,7 @@ TEST_F(SparqlParserTest, ParseInsertStatement) {
     auto triplets = parser.getInsertTriplets();
     EXPECT_EQ(4, triplets.size());
 
-    std::vector<inno::SparqlParser::Triplet> answer = {
+    std::vector<inno::Triplet> answer = {
             {"A", ":likes", "B"},
             {"A", ":likes", "C"},
             {"B", ":follows", "D"},
