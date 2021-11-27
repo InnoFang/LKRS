@@ -1,11 +1,26 @@
-//
-// Created by InnoFang on 2021/6/19.
-//
+/*
+ * @FileName   : psoBuild.cpp
+ * @CreateAt   : 2021/6/19
+ * @Author     : Inno Fang
+ * @Email      : innofang@yeah.net
+ * @Description: command-line tool for handle database creation.
+ */
 
 #include <iostream>
 #include <string>
 #include <chrono>
+
+#include <spdlog/spdlog.h>
+#include <spdlog/pattern_formatter.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+
 #include "database/database.hpp"
+#include "common/utils.hpp"
+
+static const auto _ = []{
+    spdlog::set_pattern("[%l]\t%v");
+    return 0;
+}();
 
 int main (int argc, char* argv[]) {
     if (argc != 3) {
@@ -15,18 +30,12 @@ int main (int argc, char* argv[]) {
 
     std::string dbname = argv[1];
     std::string datafile = argv[2];
-    std::cout << dbname << " " << datafile << std::endl;
 
-    Database db(dbname);
+    spdlog::info("create RDF database <{}> from path '{}'.", dbname, datafile);
 
-    auto start_time = std::chrono::high_resolution_clock::now();
+    auto ret = inno::timeit(inno::DatabaseBuilder::Create, dbname, datafile);
 
-    db.create(datafile);
+    spdlog::info("Used time: {} ms.", std::get<1>(ret));
 
-    auto stop_time = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double, std::milli> used_time = stop_time - start_time;
-
-    std::cout << "Used time: " << used_time.count() << " ms." << std::endl;
     return 0;
 }

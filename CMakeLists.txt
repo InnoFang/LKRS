@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(retrieve-system LANGUAGES CXX) # CUDA
+project(pisano LANGUAGES CXX) # CUDA
 # if need to set CUDA compiler, add
 # -DCMAKE_CUDA_COMPILER="C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.1/bin/nvcc.exe"
 
@@ -9,6 +9,11 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin/)
 #add_definitions(-fno-elide-constructors)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
+set(CONAN_LIBS "")
+execute_process(
+        COMMAND conan install ..
+)
+
 if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
     include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
     conan_basic_setup(NO_OUTPUT_DIRS)
@@ -16,6 +21,7 @@ else()
     message(WARNING "The file conanbuildinfo.cmake doesn't exist, you have to run conan install first")
 endif()
 
+message("conan get libs\t${CONAN_LIBS}\n")
 
 include_directories(include)
 add_subdirectory(src)

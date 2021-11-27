@@ -1,37 +1,39 @@
-//
-// Created by InnoFang on 2021/6/7.
-//
+﻿/*
+ * @FileName   : sparql_parser.hpp 
+ * @CreateAt   : 2021/10/28
+ * @Author     : Inno Fang
+ * @Email      : innofang@yeah.net
+ * @Description: 
+ */
 
-#ifndef PARSER_SPARQL_PARSER_HPP_
-#define PARSER_SPARQL_PARSER_HPP_
+#ifndef RETRIEVE_SYSTEM_SPARQL_PARSER_HPP
+#define RETRIEVE_SYSTEM_SPARQL_PARSER_HPP
 
-#include <vector>
-#include <string>
-#include <regex>
-#include <unordered_map>
-#include "common/triplet.hpp"
+#include <memory>
+
+#include "common/type.hpp"
+
+namespace inno {
 
 class SparqlParser {
 public:
     SparqlParser();
-    explicit SparqlParser(const std::string &sparql);
     ~SparqlParser();
-    std::vector<std::string> getQueryVariables();
-    std::vector<gPSO::triplet> getQueryTriples();
-    uint64_t mapTripletIdBy(gPSO::triplet& triplet_);
-    bool  isDistinct();
-private:
-    std::regex pattern_;
-    std::string sparql_;
-    std::vector<std::string> variables_;
-    std::vector<gPSO::triplet> triples_;
-    std::unordered_map<gPSO::triplet, uint64_t, gPSO::triplet_hash> triple2queryId;
-    std::unordered_map<uint64_t, std::string> id2var;
-    std::unordered_map<std::string, uint64_t> var2id;
-    bool distinct_{};
     void parse(const std::string &sparql);
-    void catchVariables(const std::string& raw_variable);
-    void catchTriples(const std::string& raw_triple);
-};
+    std::vector<std::string> getQueryVariables();
+    std::vector<std::string> getQueryVariables() const;
+    std::vector<Triplet> getQueryTriplets();
+    std::vector<Triplet> getQueryTriplets() const;
+    std::vector<std::string> getPredicateIndexedList();
+    std::vector<std::string> getPredicateIndexedList() const;
+    std::vector<Triplet> getInsertTriplets();
+    std::vector<Triplet> getInsertTriplets() const;
+    bool isDistinctQuery();
 
-#endif //PARSER_SPARQL_PARSER_HPP_
+private:
+    class Impl;
+    std::shared_ptr<Impl> impl_;
+};
+}
+
+#endif //RETRIEVE_SYSTEM_SPARQL_PARSER_HPP

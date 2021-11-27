@@ -1,84 +1,134 @@
-//
-// Created by InnoFang on 2021/6/10.
-//
+﻿/*
+ * @FileName   : sparql_parser.cpp 
+ * @CreateAt   : 2021/10/28
+ * @Author     : Inno Fang
+ * @Email      : innofang@yeah.net
+ * @Description: 
+ */
 
-#include <iostream>
 #include "parser/sparql_parser.hpp"
 
-SparqlParser::SparqlParser() {}
+#include <regex>
+#include <sstream>
+#include <unordered_map>
 
-SparqlParser::SparqlParser(const std::string& sparql): distinct_(false) {
-    pattern_ = std::regex(R"(SELECT\s+(DISTINCT)?(.*)[\s]?WHERE\s*\{([^}]+)\})", std::regex::icase);
-    parse(sparql);
-}
+#include <spdlog/spdlog.h>
 
-SparqlParser::~SparqlParser() {
+//const std::regex QUERY_PATTERN(R"(SELECT\s+(DISTINCT)?(.*)[\s]?WHERE\s*\{([^}]+)\})", std::regex::icase);
+//const std::regex INSERT_PATTERN(R"(INSERT\s+DATA\s*\{([^}]+)\})", std::regex::icase);
+const std::regex QUERY_PATTERN(R"(SELECT\s{1,2}(DISTINCT)?(.*)[\s]{0,2}WHERE\s{0,2}\{([^}]+)\})", std::regex::icase);
+const std::regex INSERT_PATTERN(R"(INSERT\s{1,2}DATA\s{0,2}\{([^}]+)\})", std::regex::icase);
+
+namespace inno {
+
+class SparqlParser::Impl {
+public:
+    bool distinct_ = false;
+    std::vector<std::string> query_variables;
+    std::vector<Triplet> query_triplets_;
+    std::vector<Triplet> insert_triplets_;
+    std::vector<std::string> predicates_indexed_list_;
+
+    void parse(const std::string &sparql) {
+        std::smatch match;
+        if (std::regex_search(sparql, match, QUERY_PATTERN)) {
+            distinct_ = !match.str(1).empty();
+            catchQueryVariables_(match.str(2));
+            catchQueryTriplets_(match.str(3));
+        } else if (std::regex_search(sparql, match, INSERT_PATTERN)) {
+            catchInsertTriplets(match.str(1));
+        } else {
+            spdlog::error("[SPARQL parser] cannot parse it as SPARQL.");
+        }
+    }
+
+private:
+    void catchQueryVariables_(const std::string &raw_variables) {
+        query_variables.clear();
+
+        std::istringstream iss(raw_variables);
+        std::istringstream::sync_with_stdio(false);
+
+        using is_iter_str = std::istream_iterator<std::string>;
+        auto beg = is_iter_str(iss);
+        auto end = is_iter_str();
+        query_variables.assign(beg, end);
+    }
+
+    void catchQueryTriplets_(const std::string &raw_triplet) {
+        query_triplets_.clear();
+
+        std::regex sep("\\.\\s+");
+        std::sregex_token_iterator tokens(raw_triplet.cbegin(), raw_triplet.cend(), sep, -1);
+        std::sregex_token_iterator end;
+
+        std::string s, p, o;
+        for (; tokens != end; ++ tokens) {
+            std::istringstream iss(*tokens);
+            iss >> s >> p >> o;
+            query_triplets_.emplace_back(s, p, o);
+            predicates_indexed_list_.emplace_back(p);
+        }
+    }
+
+    void catchInsertTriplets(const std::string &raw_triplet) {
+        insert_triplets_.clear();
+
+        std::regex sep("\\.\\s*");
+        std::sregex_token_iterator tokens(raw_triplet.cbegin(), raw_triplet.cend(), sep, -1);
+        std::sregex_token_iterator end;
+
+        std::string s, p, o;
+        for (; tokens != end; ++ tokens) {
+            std::istringstream iss(*tokens);
+            iss >> s >> p >> o;
+            insert_triplets_.emplace_back(s, p, o);
+        }
+    }
 };
 
+SparqlParser::SparqlParser(): impl_(new Impl()) { }
+
+SparqlParser::~SparqlParser() { }
+
 void SparqlParser::parse(const std::string &sparql) {
-    std::smatch match;
-    if (std::regex_search(sparql, match, pattern_)) {
-        distinct_ = !match.str(1).empty();
-        catchVariables(match.str(2));
-        catchTriples(match.str(3));
-    } else {
-        std::cerr << "[SPARQL parser] cannot parse it as SPARQL." << std::endl;
-    }
-}
-
-void SparqlParser::catchVariables(const std::string &raw_variable) {
-    std::istringstream iss(raw_variable);
-    using is_iter_str = std::istream_iterator<std::string>;
-    auto beg = is_iter_str(iss);
-    auto end = is_iter_str();
-    variables_.assign(beg, end);
-}
-
-void SparqlParser::catchTriples(const std::string &raw_triple) {
-    uint64_t init = 1;
-    auto encode_var = [&](std::string& var) {
-        if (!var2id.count(var)) {
-            var2id[var] = init;
-            id2var[init] = var;
-            init <<= 1;
-        }
-        return var2id[var];
-    };
-
-    std::regex sep("\\.\\s+");
-    std::sregex_token_iterator tokens(raw_triple.cbegin(), raw_triple.cend(), sep, -1);
-    std::sregex_token_iterator end;
-
-    std::string s, p, o;
-    for(; tokens != end; ++ tokens) {
-        std::istringstream iss(*tokens);
-        iss >> s >> p >> o;
-        gPSO::triplet triplet{s, p, o};
-        triples_.emplace_back(triplet);
-
-        /* encode var into id*/
-        uint64_t code = 0;
-        if (s[0] == '?') code |= encode_var(s);
-        if (p[0] == '?') code |= encode_var(p);
-        if (o[0] == '?') code |= encode_var(o);
-        triple2queryId[triplet] = code;
-    }
+    impl_->parse(sparql);
 }
 
 std::vector<std::string> SparqlParser::getQueryVariables() {
-    return variables_;
+    return impl_->query_variables;
 }
 
-std::vector<gPSO::triplet> SparqlParser::getQueryTriples() {
-    return triples_;
+std::vector<std::string> SparqlParser::getQueryVariables() const {
+    return impl_->query_variables;
 }
 
-bool SparqlParser::isDistinct() {
-    return distinct_;
+std::vector<inno::Triplet> SparqlParser::getQueryTriplets() {
+    return impl_->query_triplets_;
 }
 
-uint64_t SparqlParser::mapTripletIdBy(gPSO::triplet &triplet_) {
-    return triple2queryId[triplet_];
+std::vector<inno::Triplet> SparqlParser::getQueryTriplets() const {
+    return impl_->query_triplets_;
 }
 
+std::vector<inno::Triplet> SparqlParser::getInsertTriplets() {
+    return impl_->insert_triplets_;
+}
 
+std::vector<std::string> SparqlParser::getPredicateIndexedList() const {
+    return impl_->predicates_indexed_list_;
+}
+
+std::vector<std::string> SparqlParser::getPredicateIndexedList() {
+    return impl_->predicates_indexed_list_;
+}
+
+std::vector<inno::Triplet> SparqlParser::getInsertTriplets() const {
+    return impl_->insert_triplets_;
+}
+
+bool SparqlParser::isDistinctQuery() {
+    return impl_->distinct_;
+}
+
+}

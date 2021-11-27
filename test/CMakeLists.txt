@@ -4,7 +4,7 @@ set(SOURCE_FILES
         )
 
 add_executable(unitTests ${SOURCE_FILES})
-target_link_libraries(unitTests parser common ${CONAN_LIBS})
+target_link_libraries(unitTests parser query database ${CONAN_LIBS})
 add_test(
         NAME unitTests
         COMMAND unitTests

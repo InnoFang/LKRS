@@ -1,19 +1,16 @@
-#include <set>
-#include <string>
-#include <sstream>
-#include <fstream>
+//
+// Created by InnoFang on 2021/6/19.
+//
+
 #include <iostream>
+#include <fstream>
+#include <string>
+#include <chrono>
+#include <set>
 
-#include <spdlog/spdlog.h>
-
-#include "common/utils.hpp"
+#include "parser/sparql_parser.hpp"
 #include "database/database.hpp"
 #include "query/sparql_query.hpp"
-
-static const auto _ = []{
-    spdlog::set_pattern("[%l]\t%v");
-    return 0;
-}();
 
 std::string readSPARQLFromFile(const std::string& filepath) {
     std::ifstream infile(filepath, std::ios::in);
@@ -33,22 +30,39 @@ std::string readSPARQLFromFile(const std::string& filepath) {
     return sparql;
 }
 
-void execute_query(inno::SparqlQuery& sparqlQuery, inno::SparqlParser& parser) {
+void execute_query(SparqlQuery& sparqlQuery, const std::string& query_file) {
+    std::string sparql = readSPARQLFromFile(query_file);
+    SparqlParser parser(sparql);
+
     auto result = sparqlQuery.query(parser);
 
-    spdlog::info("Query time: {} ms.", sparqlQuery.getQueryTime());
+    std::cout << "Used time: " << sparqlQuery.UsedTime << " ms." << std::endl;
+
     if (result.empty()) {
-        spdlog::info("[Empty Result]");
+        std::cout << "[empty result]" << std::endl;
     } else {
-        spdlog::info("{} result(s).", result.size());
         auto variables = parser.getQueryVariables();
 
+        std::set<std::vector<uint64_t>> unique_result;
+        for (const auto &row : result) {
+            std::vector<uint64_t> item;
+            item.reserve(variables.size());
+            for (auto &variable: variables) {
+                item.emplace_back(row.at(variable));
+            }
+            unique_result.insert( std::move(item) );
+        }
+
+        std::cout << unique_result.size() << " result(s)" << std::endl;
+
         std::cout << "\n=============================================================\n";
+
         std::copy(variables.begin(), variables.end(), std::ostream_iterator<std::string>(std::cout, "\t"));
         std::cout << std::endl;
-
-        for (const auto &item : result) {
-            std::copy(item.begin(), item.end(), std::ostream_iterator<std::string>(std::cout, "\t"));
+        for (const std::vector<uint64_t> &row : unique_result) {
+            for (const uint64_t &so_id : row) {
+                std::cout << sparqlQuery.getSOById(so_id) << "\t";
+            }
             std::cout << std::endl;
         }
     }
@@ -66,39 +80,19 @@ int main(int argc, char** argv) {
     }
     std::string dbname = argv[1];
     std::string query_file = argv[2];
-
-    std::shared_ptr<inno::DatabaseBuilder::Option> db;
-    double used_time = 0;
-
-    std::string sparql = readSPARQLFromFile(query_file);
-    inno::SparqlParser parser;
-
+#ifdef LEGACY
+    SparqlQuery sparqlQuery(dbname);
     if (argc >= 3) {
-        parser.parse(sparql);
-
-        std::tie(db, used_time) =
-                inno::timeit(inno::DatabaseBuilder::LoadPartial, dbname, parser.getPredicateIndexedList());
-        spdlog::info("<{}> loadAll done, used {} ms.", dbname, used_time);
-
-        inno::SparqlQuery sparqlQuery(db);
-        execute_query(sparqlQuery, parser);
+        execute_query(sparqlQuery, query_file);
     } else {
-        std::tie(db, used_time) = inno::timeit(inno::DatabaseBuilder::LoadAll, dbname);
-        spdlog::info("<{}> load done, used {} ms.", dbname, used_time);
-
-        inno::SparqlQuery sparqlQuery(db);
         for (;;) {
             std::cout << "\nquery >  ";
             std::cin >> query_file;
             if (query_file == "exit" || query_file == "quit" || query_file == "q") {
                 break;
             }
-
-            sparql = readSPARQLFromFile(query_file);
-            parser.parse(sparql);
-            execute_query(sparqlQuery, parser);
+            execute_query(sparqlQuery, query_file);
         }
     }
-
     return 0;
 }
