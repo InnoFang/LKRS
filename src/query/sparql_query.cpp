@@ -181,6 +181,7 @@ public:
         int idx = 1;
         while (!triplet_list.empty()) {
             auto curr = triplet_list.begin();
+            size_t old_size = triplet_list.size();
             while (curr != triplet_list.end()) {
                 bool match = true;
 
@@ -228,7 +229,10 @@ public:
                 }
             }
             // for the situation of matching nothing for the previous triplets
-            if (curr == triplet_list.end() && !triplet_list.empty()) {
+//            if (curr == triplet_list.end() && !triplet_list.empty()) {
+            // if the new_size is equal with the old_size, that's mean matches nothing in this turn.
+            size_t new_size = triplet_list.size();
+            if (old_size == new_size) {
                 curr = triplet_list.begin();
                 query_queue.emplace_back(markAsSingle(*curr, node_set));
                 triplet_list.erase(curr);
