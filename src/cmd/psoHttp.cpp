@@ -24,8 +24,6 @@
 namespace opt = boost::program_options;
 namespace fs = boost::filesystem;
 
-using ResultSet = std::vector<std::unordered_map<std::string, std::string>>;
-
 std::shared_ptr<inno::DatabaseBuilder::Option> db;
 std::unique_ptr<inno::SparqlQuery> sparqlQuery;
 inno::SparqlParser parser;
@@ -52,7 +50,8 @@ std::vector<std::string> listRDFdb() {
     return rdf_db_list;
 }
 
-ResultSet execute_query(std::string &sparql) {
+std::vector<std::unordered_map<std::string, std::string>>
+execute_query(std::string &sparql) {
     if (sparqlQuery == nullptr) {
         spdlog::error("database doesn't be loaded correctly.");
         return {};
@@ -65,7 +64,8 @@ ResultSet execute_query(std::string &sparql) {
         return {};
     }
 
-    ResultSet ret;
+
+    std::vector<std::unordered_map<std::string, std::string>> ret;
 
     auto variables = parser.getQueryVariables();
     ret.reserve(variables.size());
@@ -447,17 +447,17 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (!vm.count("db_name")) {
-        spdlog::error("haven't specify database name.");
+    if (vm.count("db_name")) {
+        db_name = vm["db_name"].as<std::string>();
+        db = inno::DatabaseBuilder::LoadAll(db_name);
+        sparqlQuery = std::make_unique<inno::SparqlQuery>(db);
+    } else {
+        spdlog::info("haven't specify database name.");
     }
 
     std::string host = vm["host"].as<std::string>();
     int port = vm["port"].as<int>();
     spdlog::info("Running at:  http://{}:{}", host, port);
-    db_name = vm["db_name"].as<std::string>();
-
-    db = inno::DatabaseBuilder::LoadAll(db_name);
-    sparqlQuery = std::make_unique<inno::SparqlQuery>(db);
 
     httplib::Server svr;
     svr.set_base_dir("./");
