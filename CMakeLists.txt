@@ -9,10 +9,7 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin/)
 #add_definitions(-fno-elide-constructors)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
-set(CONAN_LIBS "")
-execute_process(
-        COMMAND conan install ..
-)
+execute_process( COMMAND conan install .. -s build_type=${CMAKE_BUILD_TYPE} )
 
 if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
     include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
@@ -20,8 +17,6 @@ if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 else()
     message(WARNING "The file conanbuildinfo.cmake doesn't exist, you have to run conan install first")
 endif()
-
-message("conan get libs\t${CONAN_LIBS}\n")
 
 include_directories(include)
 add_subdirectory(src)
