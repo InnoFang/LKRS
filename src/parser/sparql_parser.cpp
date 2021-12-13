@@ -16,8 +16,9 @@
 
 //const std::regex QUERY_PATTERN(R"(SELECT\s+(DISTINCT)?(.*)[\s]?WHERE\s*\{([^}]+)\})", std::regex::icase);
 //const std::regex INSERT_PATTERN(R"(INSERT\s+DATA\s*\{([^}]+)\})", std::regex::icase);
-const std::regex QUERY_PATTERN(R"(SELECT\s{1,2}(DISTINCT)?(.*)[\s]{0,2}WHERE\s{0,2}\{([^}]+)\})", std::regex::icase);
-const std::regex INSERT_PATTERN(R"(INSERT\s{1,2}DATA\s{0,2}\{([^}]+)\})", std::regex::icase);
+const std::regex QUERY_PATTERN(R"(SELECT\s+(DISTINCT)?(.*)[\s]*WHERE\s*\{([^}]+)\})", std::regex::icase);
+const std::regex INSERT_PATTERN(R"(INSERT\s+DATA\s*\{([^}]+)\})", std::regex::icase);
+const std::regex DELETE_PATTERN(R"(DELETE\s+WHERE\s*\{([^}]+)\})", std::regex::icase);
 
 namespace inno {
 
