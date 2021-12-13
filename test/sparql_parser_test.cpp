@@ -45,8 +45,8 @@ TEST_F(SparqlParserTest, IndistinctSparql) {
 }
 
 TEST_F(SparqlParserTest, ParseSparqlInCRLF) {
-    std::string sparql = "SELECT ?v0 ?v1 \r\n"
-                         "WHERE { \r\n"
+    std::string sparql = "SELECT   ?v0 ?v1    \r\n"
+                         "WHERE     {    \r\n"
                          "?v0 <http://db.uwaterloo.ca/~galuc/wsdbm/likes> ?v1 . \r\n"
                          "?v0 <http://db.uwaterloo.ca/~galuc/wsdbm/subscribes> <http://db.uwaterloo.ca/~galuc/wsdbm/Website36> . \r\n"
                          "}";
