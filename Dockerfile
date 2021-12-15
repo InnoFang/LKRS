@@ -21,7 +21,7 @@ RUN mkdir -p /pisano/bin &&\
 
 #build
 WORKDIR /pisano/build
-RUN conan install .. -s build_type=Release --build
+#RUN conan install .. -s build_type=Release --build
 RUN cmake .. -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release &&\
     cmake --build .
 
