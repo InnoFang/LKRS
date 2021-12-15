@@ -13,17 +13,17 @@ env:
 
 jobs:
   setup:
-    runs-on: [ windows-2019, macos-latest, ubuntu-latest ]
-
+    runs-on: ubuntu-latest
+    
     steps:
-    - uses: actions/checkout@v2 
-    - uses: Minimonium/conan-request-action@master
-
     - name: Configure Conan
       run: |
-          pip install conan --upgrade
+          pip3 install conan --upgrade
           conan profile new default --detect
           conan profile update settings.compiler.libcxx=libstdc++11 default
+
+    - name: Clone project
+      uses: actions/checkout@v2 
 
     - name: Configure CMake
       run: | 
