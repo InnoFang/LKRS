@@ -6,8 +6,6 @@ project(pisano LANGUAGES CXX) # CUDA
 
 set(CMAKE_CXX_STANDARD 14)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin/)
-#add_definitions(-fno-elide-constructors)
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
 execute_process( COMMAND conan install .. -s build_type=${CMAKE_BUILD_TYPE} )
 
