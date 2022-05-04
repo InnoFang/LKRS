@@ -3,10 +3,10 @@ name: CI
 on:
   push:
     branches: [ main ]
-    paths: [ src, include, test, CMakeLists.txt, conanfile.txt ]
+    paths: [ src, include, tests, CMakeLists.txt, conanfile.txt ]
   pull_request:
     branches: [ main ]
-    paths: [ src, include, test, CMakeLists.txt, conanfile.txt ]
+    paths: [ src, include, tests, CMakeLists.txt, conanfile.txt ]
 
 env:
   BUILD_TYPE: Release
@@ -23,16 +23,21 @@ jobs:
           conan profile update settings.compiler.libcxx=libstdc++11 default
 
     - name: Clone project
-      uses: actions/checkout@v2 
+      uses: actions/checkout@v2
+
+    - name: Install dependences
+      working-directory: ${{github.workspace}}
+      run: |
+        conan install . -s build_type=Release --install-folder=${{github.workspace}}/build
 
     - name: Configure CMake
       run: | 
         cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
     - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      run: |
+        cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
     - name: Test
       working-directory: ${{github.workspace}}
       run: ./bin/unitTests
-      
