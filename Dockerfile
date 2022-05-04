@@ -13,7 +13,7 @@ RUN pip install conan --upgrade &&\
 COPY include /pisano/include
 COPY scripts /pisano/scripts
 COPY src /pisano/src
-COPY test /pisano/test
+COPY tests /pisano/test
 COPY CMakeLists.txt /pisano/CMakeLists.txt
 COPY conanfile.txt /pisano/conanfile.txt
 RUN mkdir -p /pisano/bin &&\
