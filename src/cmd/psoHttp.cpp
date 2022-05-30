@@ -94,7 +94,7 @@ void list(const httplib::Request &req, httplib::Response &res) {
     res.set_header("Access-Control-Allow-Origin", "*");
     spdlog::info("Catch list request from http://{}:{}", req.remote_addr, req.remote_port);
     nlohmann::json j;
-    j["data"] = listRDFdb();
+    j["bindings"] = listRDFdb();
     res.set_content(j.dump(2), "text/plain;charset=utf-8");
 }
 
@@ -108,7 +108,7 @@ void info(const httplib::Request &req, httplib::Response &res) {
     data["entities"] = db->getEntitySize();
 
     nlohmann::json j;
-    j["data"] = data;
+    j["bindings"] = data;
     res.set_content(j.dump(2), "text/plain;charset=utf-8");
 }
 
@@ -314,7 +314,7 @@ void query(const httplib::Request &req, httplib::Response &res) {
     }
     std::string sparql = req.get_param_value("sparql");
     nlohmann::json json;
-    json["data"] = execute_query(sparql);
+    json["bindings"] = execute_query(sparql);
     res.set_content(json.dump(2), "text/plain;charset=utf-8");
 }
 
@@ -434,7 +434,7 @@ int main(int argc, char **argv) {
     opt::options_description desc("psoHttp");
     desc.add_options()
             ("host,H", opt::value<std::string>()->default_value("0.0.0.0"), "IP address")
-            ("port,P", opt::value<int>()->default_value(8998), "port")
+            ("port,P", opt::value<int>()->default_value(9000), "port")
             ("db_name,n", opt::value<std::string>(), "database name")
             ("help,h", "produce help message");
 
@@ -465,12 +465,23 @@ int main(int argc, char **argv) {
     std::string base_url = "/pisano";
     // connect
     svr.Get(base_url, [&](const httplib::Request &req, httplib::Response &res){
-        spdlog::info("connection from http://{}:{}", req.remote_addr, req.remote_port);
-
-        nlohmann::json j;
-        j["code"] = 1;
-        j["message"] = "Connected";
-        res.set_content(j.dump(2), "text/plain");
+//        spdlog::info("connection from http://{}:{}", req.remote_addr, req.remote_port);
+//
+//        nlohmann::json j;
+//        j["code"] = 1;
+//        j["message"] = "Connected";
+//        res.set_content(j.dump(2), "text/plain");
+        std::ifstream fin("../dist/index.html", std::ifstream::in);
+        std::string body, line;
+        if (fin.is_open()) {
+            while (std::getline(fin, line)) {
+                body += line;
+            }
+            res.set_content(body, "text/html");
+        } else {
+            body = "<h1> 404 NOT FOUND </h1>";
+            res.set_content(body, "text/html");
+        }
     });
 
     svr.Post(base_url + "/create", create); // create RDF
